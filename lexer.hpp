@@ -26,8 +26,11 @@ enum TokenType {
 
 	IF, THEN, ELSE, ENDIF, DECLARE, FOR, TO, STEP, NEXT, WHILE, ENDWHILE, REPEAT, UNTIL, CONSTANT, INPUT, OUTPUT, CASE, OF, ENDCASE, PROCEDURE, ENDPROCEDURE, CALL, FUNCTION, RETURNS, RETURN, ENDFUNCTION,
 	
-	// types
-	T_INTEGER, T_STRING, T_ARRAY, T_CHAR, T_BOOLEAN, T_DATE
+	// typenames
+	T_INTEGER, T_STRING, T_ARRAY, T_CHAR, T_BOOLEAN, T_DATE,
+ 
+	// true, false (count as 'reserved words')
+	TRUE, FALSE
 };
 
 // Maps to make life easier {{{
@@ -57,7 +60,9 @@ const std::map<std::string_view, TokenType> reservedWords {
 	{"FUNCTION", FUNCTION},
 	{"RETURNS", RETURNS},
 	{"RETURN", RETURN},
-	{"ENDFUNCTION", ENDFUNCTION}
+	{"ENDFUNCTION", ENDFUNCTION},
+	{"TRUE", TRUE},
+	{"FALSE", FALSE}
 };
 const std::map<std::string_view, TokenType> types {
 	{"INTEGER", T_INTEGER},
@@ -125,7 +130,9 @@ const std::map<TokenType, std::string_view> tokenNames {
 	{T_ARRAY, "T_ARRAY"},
 	{T_CHAR, "T_CHAR"},
 	{T_BOOLEAN, "T_BOOLEAN"},
-	{T_DATE, "T_DATE"}
+	{T_DATE, "T_DATE"},
+	{TRUE, "TRUE"},
+	{FALSE, "FALSE"}
 };
 // }}}
 
@@ -152,10 +159,12 @@ union Literal {
 
 struct Token {
 	size_t line;
+	size_t col;
 	TokenType type;
 	Literal literal;
 	const bool operator==(const Token& t) const noexcept {
 		return t.line == line
+			&& t.col == col
 			&& t.type == type
 			&& (t.type == REAL ? t.literal.d64 == literal.d64 :
 				t.type == INT ? t.literal.i64 == literal.i64 :
@@ -166,6 +175,7 @@ struct Token {
 	friend std::ostream& operator<<(std::ostream& os, const Token& t){
 		const std::string_view tokenName = tokenNames.at(t.type);
 		os << "{ line = " << t.line
+			<< ", col = " << t.col
 			<< ", type = " << tokenName
 			<< ", literal";
 		if(t.type == REAL){
@@ -188,7 +198,7 @@ public:
 	std::string_view source;
 	std::vector<Token> tokens;
 private:
-	size_t curr = 0, line = 1;
+	size_t curr = 0, line = 1, linestart = 0;
 	inline const char advance() noexcept {
 		char x = source[curr];
 		curr++;
@@ -205,18 +215,18 @@ private:
 		}
 		return false;
 	}
-	inline void addToken(TokenType type, Literal lt) noexcept {
-		tokens.push_back({ line, type, lt });
+	// Add token that starts at position `start` in `source`.
+	inline void addTokenStartingAt(size_t start, TokenType type, Literal lt = 0) noexcept {
+		tokens.push_back({ line, start - linestart + 1, type, lt });
 	}
-	/* Assumes a 1-character token. */
-	inline void addToken(TokenType type) noexcept {
-		tokens.push_back({ line, type, 0 });
+	inline void addToken(TokenType type, Literal lt = 0) noexcept {
+		tokens.push_back({ line, curr - linestart + 1, type, lt });
 	}
 	inline const char peek(size_t ahead = 1) const noexcept {
 		if(curr + ahead - 1 >= source.length()) return '\0';
 		else return source[curr + ahead - 1];
 	}
-	// after last character
+	// if we're after the last character
 	inline bool noMore() const noexcept {
 		return curr >= source.length();
 	}
@@ -275,6 +285,7 @@ private:
 				case '\n':
 					// line
 					line++;
+					linestart = curr;
 					break;
 				case '"': {
 					// string
@@ -284,26 +295,41 @@ private:
 						advance();
 					}
 					if(!match('"')){
-						addToken(INVALID);
+						addTokenStartingAt(start, INVALID);
 						stop = true;
 						break;
 					}
-					addToken(STR, source.substr(start, curr - start));
+					addTokenStartingAt(start, STR, source.substr(start+1, curr - start - 2));
 					break;
 				}
 				default:
 					if(isdigit(c)) {
 						// Integer or Real
-						const char *start = source.data() + curr - 1;
+						const size_t start = curr - 1;
 						while(isdigit(peek())) advance();
 						if(peek() == '.' && isdigit(peek(2))){
 							// real
 							advance();
 							while(isdigit(peek())) advance();
-							addToken(REAL, atof(start));
+							if(isalpha(peek())){
+								// We won't allow stuff like
+								// "x == 12.2OR TRUE"
+								// or stuff like
+								// 12.2e2.
+								// It makes us require safeties around atof().
+								addTokenStartingAt(start, INVALID);
+							} else {
+								// (Hopefully) the above safety worked.
+								addTokenStartingAt(start, REAL, atof(source.data() + start));
+							}
 						} else {
 							// integer
-							addToken(INT, atoi(start));
+							// no alpha characters after an integer, either
+							if(isalpha(peek())){
+								addTokenStartingAt(start, INVALID);
+							} else {
+								addTokenStartingAt(start, INT, atoi(source.data() + start));
+							}
 						}
 					} else if(isAlNum_(c)){
 						// identifier or keyword or type
@@ -315,13 +341,13 @@ private:
 						std::string_view name = source.substr(start, curr - start);
 						if(reservedWords.find(name) != reservedWords.end()){
 							// reserved word 
-							addToken(reservedWords.at(name));
+							addTokenStartingAt(start, reservedWords.at(name));
 						} else if(types.find(name) != types.end()){
 							// type
-							addToken(types.at(name));
+							addTokenStartingAt(start, types.at(name));
 						} else {
 							// it's a variable name
-							addToken(IDENTIFIER, name);
+							addTokenStartingAt(start, IDENTIFIER, name);
 						}
 					} else {
 						// invalid character
