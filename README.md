@@ -17,7 +17,7 @@ To run the tests, install [Catch2](https://github.com/catchorg/Catch2/) and comp
 
 To get an interpreter, compile `main.cpp` (with `g++ -std=c++17 -O2 main.cpp -o pcse`) and run `pcse <filename>`. You can also simply run `pcse` to get a REPL.
 
-### what is there left to do?
+### what is there left to do? (i.e. what compiles?)
 
 - [x] lexer
 - [ ] parser
