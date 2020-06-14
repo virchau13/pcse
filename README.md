@@ -1,3 +1,4 @@
+![pcse](https://raw.githubusercontent.com/virchau13/pcse/master/pcse_logo.svg)
 # pcse
 pcse is a tree-walk interpreter for the the programming language known as "pseudocode" in the IGCSE Computer Science 0478 course. (Yes, it does indeed have an official specification.)
 
