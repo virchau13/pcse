@@ -4,6 +4,7 @@ pcse
 tests
 .ccls
 *.o
+*.gch
 
 # CMake
 CMakeLists.txt.user
@@ -17,3 +18,10 @@ install_manifest.txt
 compile_commands.json
 CTestTestfile.cmake
 _deps
+
+# ccls
+.ccls-cache/
+
+.idea/
+.clangd/
+.vscode/

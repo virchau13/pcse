@@ -2,6 +2,7 @@
 #define CATCH_CONFIG_MAIN
 #include <catch2/catch.hpp>
 
+#include "fraction.hpp"
 #include "lexer.hpp"
 
 TEST_CASE("Lexing", "[lex]"){
@@ -13,23 +14,35 @@ TEST_CASE("Lexing", "[lex]"){
 		"newline\n"
 		"2 3.0 4.999 5 ENDFUNCTION\n"
 		"\"str\"\n"
+		"newline\n"
 	);
-	TokenType x;
 	std::vector<Token> expected = {
+		// Order: line, col, type, literal
 		/* Comments should be ignored. */
-		{ .line = 4, .col = 4, .type = IDENTIFIER, .literal = "newlines" },
-		{ .line = 5, .col = 1, .type = IDENTIFIER, .literal = "newline" },
-		{ .line = 6, .col = 1, .type = INT, .literal = 2 },
-		{ .line = 6, .col = 3, .type = REAL, .literal = 3.0 },
-		{ .line = 6, .col = 7, .type = REAL, .literal = 4.999 },
-		{ .line = 6, .col = 13, .type = INT, .literal = 5 },
+								/* Identifiers are stored as increasing numbers from 1 */
+		{  4, 4,  TokenType::IDENTIFIER, 1 }, /* `newlines` */
+		{  5, 1,  TokenType::IDENTIFIER, 2 }, /* `newline` */
+		{  6, 1,  TokenType::INT, 2 },
+		{  6, 3,  TokenType::REAL, Fraction(3, 1) },
+		{  6, 7,  TokenType::REAL, Fraction(4999, 1000) },
+		{  6, 13, TokenType::INT, 5 },
 		/* Note that the literal for this one _has_ to be 0.
 		 * This is to help differentiate between tokens
 		 * that are _keywords_, and tokens that actually contain data
 		 * in `literal.str`. 
 		 */
-		{ .line = 6, .col = 15, .type = ENDFUNCTION, .literal = 0 },
-		{ .line = 7, .col = 1, .type = STR, .literal = "str" }
+		{  6, 15, TokenType::ENDFUNCTION, 0 },
+		{  7, 1, TokenType::STR, "str" },
+		{  8, 1, TokenType::IDENTIFIER, 2 } /* Should be same identifier number as `newline` */
 	};
 	REQUIRE(lex.tokens == expected);
+}
+
+
+TEST_CASE("Fractions", "[fraction]"){
+	Fraction f(1, 3);
+	REQUIRE(f * 3 == 1);
+	f *= 3;
+	REQUIRE(f == 1);
+	REQUIRE(f == Fraction(1, 1));
 }
