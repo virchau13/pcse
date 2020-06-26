@@ -1,25 +1,38 @@
 ![pcse](https://raw.githubusercontent.com/virchau13/pcse/master/pcse_logo.svg)
 # pcse
-pcse is a tree-walk interpreter for the the programming language known as "pseudocode" in the IGCSE Computer Science 0478 course. (Yes, it does indeed have an official specification.)
+pcse is a tree-walk interpreter for the the programming language known as "pseudocode" in the IGCSE Computer Science 0478 course, written in C++17.
 
-### why did you make this?
+## Why did you make this?
 At the school I go to, the students are taught some Java before they are taught pseudocode so they get the fundamentals of programming down.
 
 I noticed that many of my fellow students disliked pseudocode, but liked Java. So obviously, I wanted to know why.
 
 I found out the reason they liked Java was because they could actually _run it_ and _see the impact of the code they wrote_; whereas pseudocode is simply something to write down, that doesn't actually do anything. After I realised that, I realised that an interpreter for the language could really help future students.
 
-I've always wanted to write a programming language, so I decided to try it. And I don't even have to write a specification! :D
+I've always wanted to write a programming language, so I decided to try it.
 
-### how do I use the interpreter?
-This project has to be compiled with C++17.
+## Using pcse
+In the future, there will be a VSCode extension to make installing easy. Since pcse is still in development, it must be built from scratch.  
+Note that these instructions are written so that (hopefully) a non-programmer can follow them. If you have trouble understanding anything, please open an issue!
+### Building prerequisites
+Install [git](https://git-scm.com/) and a C++ compiler. (Note that the compiler must support C++17.) Then, install [CMake](https://cmake.org/).  
+(Optional) If you want to run the tests, install [Catch2](https://github.com/catchorg/Catch2/).
+### Building
+Open a terminal, and checkout this repo:
+```
+git checkout https://github.com/virchau13/pcse
+```
+Then run these commands:
+```
+cd pcse
+cmake .
+make
+```
+After the commands have finished, `pcse` will be built.
+In order to use it, you can write your code in a file in that directory, and then run `./pcse <filename>` in a terminal.
 
-To run the tests, install [Catch2](https://github.com/catchorg/Catch2/) and compile `test.cpp` (with `g++ -std=c++17 test.cpp`).
 
-To get an interpreter, compile `main.cpp` (with `g++ -std=c++17 -O2 main.cpp -o pcse`) and run `pcse <filename>`. You can also simply run `pcse` to get a REPL.
-
-### what is there left to do? (i.e. what compiles?)
-
+## What is there left to do?
 - [x] lexer
 - [ ] parser
 - [ ] interpreter
