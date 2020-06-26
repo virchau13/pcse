@@ -1,11 +1,12 @@
 (* This grammar is only valid for _tokens_, not _the raw code_ (i.e. it ignores whitespace, etc.) *)
 (* Any CAPITALIZED variable is a special token *)
 
-main = { ( stmt | topstmt ) };
+main = { topstmt };
 (* { something } can be repeated zero times *)
 block = { stmt };
 
-topstmt = DECLARE, identifier, COLON, type |
+topstmt = stmt | 
+		DECLARE, identifier, COLON, type |
 		CONSTANT, identifier, =, expr
 		PROCEDURE, identifier, [ LEFT_PAR, paramlist, RIGHT_PAR ], program, ENDPROCEDURE |
 		FUNCTION, identifier [ LEFT_PAR, paramlist, RIGHT_PAR ], RETURNS, type, program, ENDFUNCTION
@@ -36,5 +37,6 @@ unary_expr = [ NOT | MINUS ] primary;
 primary = REAL | INT | TRUE | FALSE | identifier |
 		LEFT_PAR expr RIGHT_PAR;
 
-type = [ T_ARRAY, LEFT_SQ, expr, COLON, expr, RIGHT_SQ ], (T_INTEGER | T_REAL | T_CHAR | T_STRING | T_BOOLEAN | T_DATE);
+type = [ T_ARRAY, LEFT_SQ, expr, COLON, expr, RIGHT_SQ ], primtype;
+primtype = (T_INTEGER | T_REAL | T_CHAR | T_STRING | T_BOOLEAN | T_DATE);
 identifier = ? IDENTIFIER ?;

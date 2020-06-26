@@ -181,7 +181,7 @@ public:
 	BinExpr(CheckedIterator<>& it) {
 		for(;;){
 			// parse left
-			exprs.push_back(LowerExpr(it));
+			exprs.emplace_back(it);
 			// parse operator
 			// see if there is an operator and break if there isn't
 			if(!is_valid_operator(it)) break;
@@ -208,9 +208,62 @@ Primary::Inside Primary::make_inside(CheckedIterator<>& it){
 		if(it->type != TokenType::RIGHT_PAREN){
 			throw ParseError(*it, "Expected right paren!");
 		}
+		return expr;
 	}
 	throw ParseError(*it, "Invalid identifier or constant");
 }
+
+const std::vector<TokenType> valid_primtype_types = {
+	TokenType::T_INTEGER, 
+	TokenType::T_REAL, 
+	TokenType::T_CHAR, 
+	TokenType::T_STRING, 
+	TokenType::T_BOOLEAN, 
+	TokenType::T_DATE
+};
+
+class PrimType {
+	const TokenType type;
+	PrimType(CheckedIterator<>& it) : type(it->type) {
+		bool b = false;
+		for(const auto valid_type : valid_primtype_types){
+			b |= (type == valid_type);
+		}
+		if(!b){
+			throw ParseError(*it, "Invalid type");
+		}
+		++it;
+	}
+};
+
+class Type {
+public:
+	struct Array {
+		bool array;
+		Expr start, len;
+	} array;
+	/* `start`s can be negative too :( */
+	PrimType primtype;
+	static Array make_array(CheckedIterator<>& it){
+		if(it->type == TokenType::T_ARRAY){
+			++it;
+#define EXPECT(x, s) if(it->type != x) throw ParseError(*it, "Expected " s); ++it;
+			EXPECT(TokenType::LEFT_SQ, "[");
+#undef EXPECT
+		} else {
+			++it;
+			return { false, 0, 0 };
+		}
+	}
+	Type(CheckedIterator<>& it) : array(make_array(it)), primtype(make_prim(it)) {}
+};
+
+
+template<bool TopLevel>
+class Stmt {
+};
+
+using TopStmt = Stmt<true>;
 
 template<bool TopLevel>
 class Block {
