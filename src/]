@@ -85,7 +85,7 @@ public:
 
 // grammar.ebnf describes the idealised syntax.
 
-// Expr, Type, Param {{{
+// Expr, Type {{{
 
 template<uint16_t Level>
 class BinExpr;
@@ -223,6 +223,8 @@ public:
 	Type(Parser& p): all(make_all(p)) {}
 };
 
+// }}}
+
 class Param {
 public:
 	bool byref;
@@ -240,8 +242,6 @@ public:
 	}
 	Param(Parser& p) : byref(make_byref(p)), ident(make_ident(p)), type(p) {}
 };
-
-// }}}
 
 // Program, Block, Stmt {{{
 
@@ -363,46 +363,8 @@ public:
 					blocks.emplace_back(p);
 					if(p.match_type(TokenType::OTHERWISE)){
 						blocks.emplace_back(p);
-						p.expect_type(TokenType::ENDCASE);
-						break;
-					}
-					if(p.match_type(TokenType::ENDCASE)){
-						break;
 					}
 				}
-				break;
-			CASE(FOR)
-				ids.push_back(CONSUME_ID());
-				p.expect_type(TokenType::ASSIGN);
-				exprs.emplace_back(p);
-				p.expect_type(TokenType::TO);
-				exprs.emplace_back(p);
-				if(p.match_type(TokenType::STEP)){
-					exprs.emplace_back(p);
-				}
-				blocks.emplace_back(p);
-				p.expect_type(TokenType::NEXT);
-				break;
-			CASE(REPEAT)
-				blocks.emplace_back(p);
-				p.expect_type(TokenType::UNTIL);
-				exprs.emplace_back(p);
-				break;
-			CASE(WHILE)
-				exprs.emplace_back(p);
-				p.expect_type(TokenType::DO);
-				blocks.emplace_back(p);
-				p.expect_type(TokenType::ENDWHILE);
-				break;
-			CASE(CALL)
-				ids.push_back(CONSUME_ID());
-				if(p.match_type(TokenType::LEFT_PAREN)){
-					paramlist(p);
-				}
-				p.expect_type(TokenType::RIGHT_PAREN);
-				break;
-			default:
-				p.error("Invalid start of statement");
 		}
 	}
 	void stmt(Parser& p){

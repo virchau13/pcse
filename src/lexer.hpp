@@ -52,6 +52,7 @@
 	TOK(STEP)	RESERVED(STEP)\
 	TOK(NEXT)	RESERVED(NEXT)\
 	TOK(WHILE)	RESERVED(WHILE)\
+	TOK(DO) RESERVED(DO)\
 	TOK(ENDWHILE)	RESERVED(ENDWHILE)\
 	TOK(REPEAT)	RESERVED(REPEAT)\
 	TOK(UNTIL)	RESERVED(UNTIL)\
@@ -70,13 +71,13 @@
 	TOK(RETURNS)	RESERVED(RETURNS)\
 	TOK(RETURN)	RESERVED(RETURN)\
 	TOK(ENDFUNCTION)	RESERVED(ENDFUNCTION)\
-	TOK(INTEGER) RESERVED(INTEGER)\
-	TOK(REAL) RESERVED(REAL)\
-	TOK(STRING) RESERVED(STRING)\
-	TOK(ARRAY) RESERVED(ARRAY)\
-	TOK(CHAR) RESERVED(CHAR)\
-	TOK(BOOLEAN) RESERVED(BOOLEAN)\
-	TOK(DATE) RESERVED(DATE)\
+	TOK(INTEGER) RESERVED(INTEGER) TYPE(INTEGER)\
+	TOK(REAL) RESERVED(REAL) TYPE(REAL)\
+	TOK(STRING) RESERVED(STRING) TYPE(STRING)\
+	TOK(ARRAY) RESERVED(ARRAY) TYPE(ARRAY)\
+	TOK(CHAR) RESERVED(CHAR) TYPE(CHAR)\
+	TOK(BOOLEAN) RESERVED(BOOLEAN) TYPE(BOOLEAN)\
+	TOK(DATE) RESERVED(DATE) TYPE(DATE)\
 	TOK(TRUE) RESERVED(TRUE)\
 	TOK(FALSE) RESERVED(FALSE)\
 	TOK(MOD) RESERVED(MOD)\
@@ -94,29 +95,33 @@
 
 /* default */
 #define RESERVED(a) /* nothing */
+#define TYPE(a) /* nothing */
+#define TOK(a) /* nothing */
 
 enum class TokenType {
+#undef TOK
 #define TOK(a) a,
 	TOKENTYPE_LIST
 #undef TOK
+#define TOK(a) /* nothing */
 	LENGTH
 };
 
 const size_t TOKENTYPE_LENGTH = static_cast<int>(TokenType::LENGTH);
 
 const std::vector<std::string_view> TokenTypeStrTable = {
+#undef TOK
 #define TOK(a) #a,
 	TOKENTYPE_LIST
 #undef TOK
+#define TOK(a) /* nothing */
 };
 
 inline std::string_view tokenTypeToStr(const TokenType type) noexcept {
 	return TokenTypeStrTable[static_cast<int>(type)];
 }
 
-
 const std::map<std::string_view, TokenType> reservedWords {
-#define TOK(a) /* nothing */
 #undef RESERVED
 #define RESERVED(a) { #a, TokenType:: a },
 	TOKENTYPE_LIST
@@ -134,6 +139,18 @@ const std::vector<bool> is_reserved_word = [](){
 
 inline bool isReservedWord(const TokenType type) noexcept {
 	return is_reserved_word[static_cast<int>(type)];
+}
+
+const std::vector<TokenType> type_keywords = {
+#undef TYPE
+#define TYPE(a) TokenType:: a,
+	TOKENTYPE_LIST
+#undef TYPE
+#define TYPE(a) /* nothing */
+};
+
+inline bool isTypeKeyword(const TokenType type) noexcept {
+	return std::find(type_keywords.begin(), type_keywords.end(), type) != type_keywords.end();
 }
 
 const std::string MAX_FRAC_NUM_STR = std::to_string(std::numeric_limits<Fraction<>::num_type>::max());
@@ -205,7 +222,7 @@ public:
 	std::vector<Token> output;
 	std::vector<size_t> line_loc;
 protected:
-	int64_t identifier_count = 1;
+	int64_t identifier_count = 0;
 	std::map<std::string_view, int64_t> id_num;
 	size_t line = 1;
 	size_t curr = 0;
@@ -257,7 +274,7 @@ protected:
 		} else return false;
 	}
 	template<typename T>
-	inline void error(const T msg){
+	inline void error(const T msg) const{
 		throw LexError(curr-1, line, getCol(), msg);
 	}
 	inline void expect(char c){
@@ -351,7 +368,7 @@ protected:
 		if(reservedWords.find(id) != reservedWords.end()){
 			emit(reservedWords.at(id), 0, start);
 		} else {
-			int64_t idn = identifier_count;
+			int64_t idn = identifier_count + 1;
 			if(id_num.find(id) != id_num.end()){
 				idn = id_num[id];
 			} else {
