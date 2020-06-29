@@ -9,7 +9,7 @@ else()
 endif()
 
 # tests
-add_executable(tests EXCLUDE_FROM_ALL test/tests-main.cpp test/lexer.test.cpp test/utils.test.cpp test/fraction.test.cpp)
+add_executable(tests EXCLUDE_FROM_ALL test/tests-main.cpp test/lexer.test.cpp test/utils.test.cpp test/fraction.test.cpp test/parser.test.cpp)
 find_package(Catch2 REQUIRED)
 target_link_libraries(tests Catch2::Catch2)
 

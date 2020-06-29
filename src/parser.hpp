@@ -105,6 +105,11 @@ public:
 	} all;
 	All::Main main() const noexcept { return all.main; }
 	TokenType primtype() const noexcept { return all.primtype; }
+	inline bool is_constant() const noexcept {
+		return all.primtype == TokenType::STR_C
+			|| all.primtype == TokenType::INT_C
+			|| all.primtype == TokenType::REAL_C;
+	}
 	static All make_all(Parser& p);
 	Primary(Parser& p) : all(make_all(p)) {}
 };
@@ -124,7 +129,10 @@ public:
 				return type;
 			}
 		}
-		p.error("Invalid unary operator");
+		return TokenType::INVALID;
+	}
+	inline bool is_constant() const noexcept {
+		return main.is_constant();
 	}
 	UnaryExpr(Parser& p) : op(make_op(p)), main(Primary(p)) {}
 };
@@ -139,11 +147,14 @@ static const std::vector<TokenType> binary_ops[] = {
 
 const uint16_t MAX_BINARY_LEVEL = 4;
 
+// TODO: implement function call
+// (I FORGOT!!!)
+
 template<uint16_t Level>
 class BinExpr {
 	static_assert(Level <= MAX_BINARY_LEVEL);
 public:
-	using LowerExpr = std::conditional<(Level < MAX_BINARY_LEVEL), BinExpr<Level+1>, UnaryExpr>;
+	using LowerExpr = typename std::conditional<(Level < MAX_BINARY_LEVEL), BinExpr<Level+1>, UnaryExpr>::type;
 
 	// Must always be read like: exprs[0], ops[0], exprs[1], ops[1], exprs[2], ...
 	std::vector<TokenType> ops;
@@ -444,7 +455,7 @@ public:
 				p.expect_type(TokenType::ENDFUNCTION);
 				break;
 			default:
-				stmt(p);
+				stmt(p, t);
 		}
 	}
 #undef CASE

@@ -317,7 +317,7 @@ protected:
 			{
 				int32_t mul = 1;
 				top = 0;
-				for(size_t i = curr-1; i >= start; i--){
+				for(ssize_t i = curr-1; i >= (ssize_t)start; i--){
 					if(source[i] == '.'){
 						bot = mul;
 					} else {
@@ -343,7 +343,7 @@ protected:
 			int64_t res = 0;
 			{
 				int64_t mul = 1;
-				for(size_t i = curr-1; i >= start; i--){
+				for(ssize_t i = curr-1; i >= (ssize_t)start; i--){
 					res += (int64_t)(source[i] - '0') * mul;
 					mul *= 10;
 				}
@@ -372,7 +372,7 @@ protected:
 			if(id_num.find(id) != id_num.end()){
 				idn = id_num[id];
 			} else {
-				id_num[id] = identifier_count;
+				id_num[id] = idn;
 				identifier_count++;
 			}
 			emit(TokenType::IDENTIFIER, idn, start);

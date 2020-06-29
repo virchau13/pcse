@@ -27,9 +27,10 @@ paramlist = [ { param, COMMA }, param ];
 param = [ BYREF ], identifier, COLON, type;
 
 (* top level expr *)
-expr = bin_expr0;
+expr = identifier LEFT_PAR right RIGHT_PAR
 
 (* binary expr <precedence level> *)
+
 bin_expr0 = bin_expr1 { OR bin_expr1 };
 bin_expr1 = bin_expr2 { AND bin_expr2 };
 bin_expr2 = bin_expr3 { ( EQ | GT | LT | GT_EQ | LT_EQ | LT_GT ) bin_expr3 };
