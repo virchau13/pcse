@@ -27,18 +27,20 @@ paramlist = [ { param, COMMA }, param ];
 param = [ BYREF ], identifier, COLON, type;
 
 (* top level expr *)
-expr = identifier LEFT_PAR right RIGHT_PAR
+expr = bin_expr0;
 
 (* binary expr <precedence level> *)
-
 bin_expr0 = bin_expr1 { OR bin_expr1 };
 bin_expr1 = bin_expr2 { AND bin_expr2 };
 bin_expr2 = bin_expr3 { ( EQ | GT | LT | GT_EQ | LT_EQ | LT_GT ) bin_expr3 };
 bin_expr3 = bin_expr4 { ( PLUS | MINUS ) bin_expr4 };
 bin_expr4 = unary_expr { ( STAR | SLASH | MOD | DIV ) unary_expr };
 
-unary_expr = [ NOT | MINUS ] primary;
-primary = REAL_C | INT_C | STR_C | TRUE | FALSE | identifier |
+unary_expr = ( NOT | MINUS ) unary_expr |
+			primary;
+primary = REAL_C | INT_C | STR_C | TRUE | FALSE | 
+		identifier LEFT_PAR [ exprlist ] RIGHT_PAR | (* calling a function *)
+		identifier |
 		LEFT_PAR expr RIGHT_PAR;
 
 type = [ T_ARRAY, LEFT_SQ, expr, COLON, expr, RIGHT_SQ ] (T_INTEGER | T_REAL | T_CHAR | T_STRING | T_BOOLEAN | T_DATE);

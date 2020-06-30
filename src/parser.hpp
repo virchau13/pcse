@@ -17,6 +17,9 @@ const Token invalid_token(0, 0, TokenType::INVALID, 0);
 template<bool TopLevel>
 class Stmt;
 
+std::ostream& operator<<(std::ostream& os, const Stmt<true>& stmt) noexcept;
+std::ostream& operator<<(std::ostream& os, const Stmt<false>& stmt) noexcept;
+
 class Program;
 
 // Parser {{{
@@ -33,6 +36,10 @@ public:
 	}
 	inline const Token& peek() const noexcept {
 		return done() ? invalid_token : tokens[curr];
+	}
+	// 2 lookahead :/
+	inline const Token& peek2() const noexcept {
+		return curr+1 >= tokens.size() ? invalid_token : tokens[curr+1];
 	}
 	inline const Token& next()  noexcept {
 		const Token& n = peek();
@@ -85,20 +92,24 @@ public:
 
 // grammar.ebnf describes the idealised syntax.
 
-// Expr, Type, Param {{{
+// Expr, Type, Param, Primary {{{
 
 template<uint16_t Level>
 class BinExpr;
 
 using Expr = BinExpr<0>;
+std::ostream& operator<<(std::ostream& os, const Expr& expr) noexcept;
 
 class Primary {
 public:
 	const struct All {
+		// Valid values: STR_C, INT_C, REAL_C, IDENTIFIER, TRUE, FALSE, CALL [function call], INVALID [(expr)]
 		TokenType primtype;
+		int64_t func_id;
 		union Main {
 			Token::Literal lt;
 			Expr *expr;
+			std::vector<Expr> *args;
 			inline Main(Token::Literal lt_) : lt(lt_) {}
 			inline Main(int i): lt(i) {}
 		} main;
@@ -106,12 +117,55 @@ public:
 	All::Main main() const noexcept { return all.main; }
 	TokenType primtype() const noexcept { return all.primtype; }
 	inline bool is_constant() const noexcept {
-		return all.primtype == TokenType::STR_C
-			|| all.primtype == TokenType::INT_C
-			|| all.primtype == TokenType::REAL_C;
+		return isAnyOf(all.primtype,
+				TokenType::STR_C, TokenType::INT_C, TokenType::REAL_C,
+				TokenType::TRUE, TokenType::FALSE);
 	}
 	static All make_all(Parser& p);
+	
 	Primary(Parser& p) : all(make_all(p)) {}
+	// friend operator<< {{{
+	/* make easier to debug */
+	friend std::ostream& operator<<(std::ostream& os, const Primary& p) noexcept {
+		os << '{';
+		switch(p.primtype()){
+#define CASE(x) case TokenType:: x
+			CASE(STR_C):
+				os << '"' << p.main().lt.str << '"';
+				break;
+			CASE(INT_C):
+				os << p.main().lt.i64;
+				break;
+			CASE(REAL_C):
+				os << p.main().lt.frac;
+				break;
+			CASE(TRUE):
+			CASE(FALSE):
+				os << tokenTypeToStr(p.primtype());
+				break;
+			CASE(CALL):
+				os << '~' << p.all.func_id << '(';
+				for(size_t i = 0; i < p.main().args->size(); i++){
+					os << (*p.main().args)[i];
+					if(i != p.main().args->size() - 1){
+						os << ", ";
+					}
+				}
+				break;
+			CASE(INVALID):
+				os << '(' << *p.main().expr << ')';
+				break;
+			CASE(IDENTIFIER):
+				os << '~' << p.main().lt.i64;
+				break;
+			default:
+				break;
+#undef CASE
+		}
+		os << '}';
+		return os;
+	} 
+	// }}}
 };
 
 static const std::vector<TokenType> unary_ops = {
@@ -122,7 +176,12 @@ static const std::vector<TokenType> unary_ops = {
 class UnaryExpr {
 public:
 	const TokenType op;
-	const Primary main;
+	const union Main {
+		Primary *primary;
+		UnaryExpr *unexpr;
+		Main(Primary *p) : primary(p) {}
+		Main(UnaryExpr *e): unexpr(e) {}
+	} main;
 	static TokenType make_op(Parser& p) {
 		for(const auto type : unary_ops){
 			if(p.match_type(type)){
@@ -131,10 +190,31 @@ public:
 		}
 		return TokenType::INVALID;
 	}
-	inline bool is_constant() const noexcept {
-		return main.is_constant();
+	static Main make_main(TokenType op, Parser& p){
+		if(op == TokenType::INVALID){
+			return new Primary(p);
+		} else {
+			return new UnaryExpr(p);
+		}
 	}
-	UnaryExpr(Parser& p) : op(make_op(p)), main(Primary(p)) {}
+	inline bool is_constant() const noexcept {
+		return (op == TokenType::INVALID ? main.primary->is_constant() : main.unexpr->is_constant());
+	}
+	UnaryExpr(Parser& p) : op(make_op(p)), main(make_main(op, p)) {}
+	// friend operator<< {{{
+	friend std::ostream& operator<<(std::ostream& os, const UnaryExpr& un) noexcept {
+		os << '{';
+		if(un.op == TokenType::INVALID){
+			os << *un.main.primary;
+		} else {
+			os 	<< (un.op == TokenType::NOT ?
+					"NOT" : "-")
+				<< *un.main.unexpr;
+		}
+		os << '}';
+		return os;
+	}
+	// }}}
 };
 
 static const std::vector<TokenType> binary_ops[] = {
@@ -146,9 +226,6 @@ static const std::vector<TokenType> binary_ops[] = {
 };
 
 const uint16_t MAX_BINARY_LEVEL = 4;
-
-// TODO: implement function call
-// (I FORGOT!!!)
 
 template<uint16_t Level>
 class BinExpr {
@@ -182,17 +259,49 @@ public:
 			}
 		}
 	}
+	// friend operator<< {{{
+	friend std::ostream& operator<<(std::ostream& os, const BinExpr<Level>& b) noexcept {
+		os << '{';
+		for(size_t i = 0; i < b.ops.size(); i++){
+			os << b.exprs[i] << ' ' << opToStr(b.ops[i]) << ' ';
+		}
+		os << b.exprs.back();
+		os << '}';
+		return os;
+	}
+	// }}}
 };
 
 Primary::All Primary::make_all(Parser& p){
-	All res = {TokenType::INVALID, 0};
+	All res = {TokenType::INVALID, 0, 0};
 	const Token& n = p.next();
 	if(isAnyOf(n.type, 
 				TokenType::REAL_C, TokenType::INT_C, TokenType::STR_C,
-				TokenType::TRUE, TokenType::FALSE, TokenType::IDENTIFIER)){
+				TokenType::TRUE, TokenType::FALSE)){
 		res.primtype = n.type;
 		res.main = n.literal;
 		return res;
+	} else if(n.type == TokenType::IDENTIFIER){
+		if(p.match_type(TokenType::LEFT_PAREN)){
+			/* function call */
+			res.primtype = TokenType::CALL; // lmao
+			res.func_id = n.literal.i64;
+			res.main.args = new std::vector<Expr>();
+			if(p.match_type(TokenType::RIGHT_PAREN)){
+				return res;
+			}
+			for(;;){
+				res.main.args->emplace_back(p);
+				if(p.match_type(TokenType::RIGHT_PAREN)){
+					return res;
+				}
+				p.expect_type(TokenType::COMMA); /* another expr is coming */
+			}
+		} else {
+			res.primtype = TokenType::IDENTIFIER;
+			res.main = n.literal;
+			return res;
+		}
 	} else if(n.type == TokenType::LEFT_PAREN){
 		res.main.expr = new Expr(p);
 		p.expect_type(TokenType::RIGHT_PAREN);
@@ -209,10 +318,10 @@ public:
 		Expr *start, *end;
 		TokenType name;
 	} all;
-	inline bool is_array(){ return all.is_array; }
-	inline const Expr *start(){ return all.start; }
-	inline const Expr *end(){ return all.end; }
-	inline TokenType name(){ return all.name; }
+	inline bool is_array() const noexcept { return all.is_array; }
+	inline const Expr *start() const noexcept { return all.start; }
+	inline const Expr *end() const noexcept { return all.end; }
+	inline TokenType name() const noexcept { return all.name; }
 	static All make_all(Parser& p){
 		All res;
 		if(p.match_type(TokenType::ARRAY)){
@@ -232,6 +341,19 @@ public:
 		p.error("Invalid type name");
 	}
 	Type(Parser& p): all(make_all(p)) {}
+	// friend operator<< {{{
+	friend std::ostream& operator<<(std::ostream& os, const Type& type){
+		os << '{';
+		if(type.all.is_array){
+			os << "ARRAY[";
+			os << (*type.all.start) << ':' << (*type.all.end);
+			os << "] OF ";
+		}
+		os << tokenTypeToStr(type.name());
+		os << '}';
+		return os;
+	}
+	// }}}
 };
 
 class Param {
@@ -250,27 +372,52 @@ public:
 		return p.next().literal.i64;
 	}
 	Param(Parser& p) : byref(make_byref(p)), ident(make_ident(p)), type(p) {}
+	// friend operator<< {{{
+	friend std::ostream& operator<<(std::ostream& os, const Param& p) noexcept {
+		os << '{';
+		if(p.byref) os << "BYREF ";
+		os << '{' << p.ident << "}: ";
+		os << p.type;
+		os << '}';
+		return os;
+	}
+	// }}}
 };
 
 // }}}
 
 // Program, Block, Stmt {{{
 
+#define STMTFORM_LIST \
+	FORM(DECLARE)\
+	FORM(CONSTANT)\
+	FORM(PROCEDURE)\
+	FORM(FUNCTION)\
+	FORM(ASSIGN)\
+	FORM(INPUT)\
+	FORM(OUTPUT)\
+	FORM(IF)\
+	FORM(CASE)\
+	FORM(FOR)\
+	FORM(REPEAT)\
+	FORM(WHILE)\
+	FORM(CALL)
+
 enum class StmtForm {
-	DECLARE,
-	CONSTANT,
-	PROCEDURE,
-	FUNCTION,
-	ASSIGN,
-	INPUT,
-	OUTPUT,
-	IF,
-	CASE,
-	FOR,
-	REPEAT,
-	WHILE,
-	CALL
+#define FORM(x) x,
+	STMTFORM_LIST
+#undef FORM
 };
+
+const std::vector<std::string_view> stmtform_to_str = {
+#define FORM(x) #x,
+	STMTFORM_LIST
+#undef FORM
+};
+
+std::string_view stmtformToStr(const StmtForm form){
+	return stmtform_to_str[static_cast<int>(form)];
+}
 
 const std::vector<TokenType> valid_stmt_starts = {
 	TokenType::DECLARE,
@@ -303,6 +450,16 @@ public:
 			stmts.emplace_back(p);
 		}
 	}
+	// friend operator<< {{{
+	friend std::ostream& operator<<(std::ostream& os, const Block& b) noexcept {
+		os << "{\n";
+		for(const auto& x : b.stmts){
+			os << x << '\n';
+		}
+		os << '}';
+		return os;
+	}
+	// }}}
 };
 
 class Program {
@@ -313,6 +470,16 @@ public:
 			stmts.emplace_back(p);
 		}
 	}
+	// friend operator<< {{{
+	friend std::ostream& operator<<(std::ostream& os, const Program& p) noexcept {
+		os << "{\n";
+		for(const auto& x : p.stmts){
+			os << x << '\n';
+		}
+		os << '}';
+		return os;
+	}
+	// }}}
 };
 
 template<bool TopLevel>
@@ -467,6 +634,34 @@ public:
 			stmt(p);
 		}
 	}
+	// friend operator<< {{{
+	friend std::ostream& operator<<(std::ostream& os, const Stmt<TopLevel>& stmt) noexcept {
+		os << '{';
+		os << stmtformToStr(stmt.form);
+		os << " ids: [";
+		for(const auto x : stmt.ids){
+			os << x << ',';
+		}
+		os << "] exprs: [";
+		for(const auto& x : stmt.exprs){
+			os << x << ", ";
+		}
+		os << "] blocks: [";
+		for(const auto& x : stmt.blocks){
+			os << x << ", ";
+		}
+		os << "] params: [";
+		for(const auto& x : stmt.params){
+			os << x << ", ";
+		}
+		os << "] types: [";
+		for(const auto& x : stmt.types){
+			os << x << ", ";
+		}
+		os << "] }";
+		return os;
+	}
+	// }}}
 };
 
 // }}}

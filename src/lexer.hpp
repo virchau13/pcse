@@ -27,21 +27,21 @@
 	TOK(LEFT_SQ) \
 	TOK(RIGHT_SQ) \
 	TOK(COMMA) \
-	TOK(MINUS) \
-	TOK(PLUS) \
-	TOK(SLASH) \
-	TOK(STAR) \
+	TOK(MINUS) OP(MINUS, -)\
+	TOK(PLUS) OP(PLUS, +) \
+	TOK(SLASH) OP(SLASH, /) \
+	TOK(STAR) OP(STAR, *) \
 	TOK(COLON) \
 	TOK(ASSIGN) \
-	TOK(EQ) \
-	TOK(LT_GT) \
-	TOK(GT) \
-	TOK(GT_EQ) \
-	TOK(LT) \
-	TOK(LT_EQ) \
-	TOK(AND) RESERVED(AND)\
-	TOK(OR) RESERVED(OR)\
-	TOK(NOT) RESERVED(NOT)\
+	TOK(EQ) OP(EQ, =) \
+	TOK(LT_GT) OP(LT_GT, <>) \
+	TOK(GT) OP(GT, >) \
+	TOK(GT_EQ) OP(GT_EQ, >=) \
+	TOK(LT) OP(LT, <) \
+	TOK(LT_EQ) OP(LT_EQ, <=) \
+	TOK(AND) RESERVED(AND) OP(AND, AND)\
+	TOK(OR) RESERVED(OR) OP(OR, OR)\
+	TOK(NOT) RESERVED(NOT) OP(NOT, NOT)\
 	TOK(IF)	RESERVED(IF)\
 	TOK(THEN)	RESERVED(THEN)\
 	TOK(ELSE)	RESERVED(ELSE)\
@@ -80,8 +80,8 @@
 	TOK(DATE) RESERVED(DATE) TYPE(DATE)\
 	TOK(TRUE) RESERVED(TRUE)\
 	TOK(FALSE) RESERVED(FALSE)\
-	TOK(MOD) RESERVED(MOD)\
-	TOK(DIV) RESERVED(DIV)\
+	TOK(MOD) RESERVED(MOD) OP(MOD, MOD)\
+	TOK(DIV) RESERVED(DIV) OP(DIV, DIV)\
 	/* special */ \
 	TOK(IDENTIFIER)\
 	TOK(STR_C)\
@@ -97,6 +97,7 @@
 #define RESERVED(a) /* nothing */
 #define TYPE(a) /* nothing */
 #define TOK(a) /* nothing */
+#define OP(a, b) /* nothing */
 
 enum class TokenType {
 #undef TOK
@@ -148,6 +149,18 @@ const std::vector<TokenType> type_keywords = {
 #undef TYPE
 #define TYPE(a) /* nothing */
 };
+
+const std::map<TokenType, std::string_view> op_to_str {
+#undef OP
+#define OP(a, b) { TokenType:: a, #b },
+	TOKENTYPE_LIST
+#undef OP
+#define OP(a, b) /* nothing */
+};
+
+inline std::string_view opToStr(const TokenType type){
+	return op_to_str.at(type);
+}
 
 inline bool isTypeKeyword(const TokenType type) noexcept {
 	return std::find(type_keywords.begin(), type_keywords.end(), type) != type_keywords.end();

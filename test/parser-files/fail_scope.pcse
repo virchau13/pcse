@@ -1,0 +1,3 @@
+FOR i <- 1 TO 10
+	DECLARE x: INTEGER
+NEXT
