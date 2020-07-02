@@ -30,7 +30,7 @@ TEST_CASE("Parsing", "[parser]"){
 		Program& p = *test_string(
 			"OUTPUT 2 + 3 * 4\n"
 		);
-		std::cout << p << '\n';
+		// std::cout << p << '\n';
 		REQUIRE(p.stmts.size() == 1);
 		REQUIRE(p.stmts[0].exprs.size() == 1);
 		{
@@ -99,8 +99,9 @@ TEST_CASE("Parsing", "[parser]"){
 			for(const auto& t : tmp.output){
 				sstream << t;
 			}
-			 UNSCOPED_INFO("Tokens are " << sstream.str() << "\n");
+			UNSCOPED_INFO("Tokens are " << sstream.str() << '\n');
 			Parser p(tmp.output);
+			UNSCOPED_INFO("Program is: \n" << *p.output << '\n');
 		} catch(ParseError& e){
 			failed = true;
 			UNSCOPED_INFO("Error is " << e.what() << "\nat: " << e.token.line << ":" << e.token.col << "\n");

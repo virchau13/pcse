@@ -1,3 +1,5 @@
+#ifndef PARSER_HPP
+#define PARSER_HPP
 #include <string>
 #include <map>
 #include <vector>
@@ -103,7 +105,8 @@ std::ostream& operator<<(std::ostream& os, const Expr& expr) noexcept;
 class Primary {
 public:
 	const struct All {
-		// Valid values: STR_C, INT_C, REAL_C, IDENTIFIER, TRUE, FALSE, CALL [function call], INVALID [(expr)]
+		// Valid values: 
+		// STR_C, INT_C, REAL_C, CHAR_C, IDENTIFIER, TRUE, FALSE, CALL [function call], INVALID [(expr)]
 		TokenType primtype;
 		int64_t func_id;
 		union Main {
@@ -119,10 +122,9 @@ public:
 	inline bool is_constant() const noexcept {
 		return isAnyOf(all.primtype,
 				TokenType::STR_C, TokenType::INT_C, TokenType::REAL_C,
-				TokenType::TRUE, TokenType::FALSE);
+				TokenType::CHAR_C, TokenType::TRUE, TokenType::FALSE);
 	}
 	static All make_all(Parser& p);
-	
 	Primary(Parser& p) : all(make_all(p)) {}
 	// friend operator<< {{{
 	/* make easier to debug */
@@ -138,6 +140,9 @@ public:
 				break;
 			CASE(REAL_C):
 				os << p.main().lt.frac;
+				break;
+			CASE(CHAR_C):
+				os << '\'' << p.main().lt.c << '\'';
 				break;
 			CASE(TRUE):
 			CASE(FALSE):
@@ -277,7 +282,7 @@ Primary::All Primary::make_all(Parser& p){
 	const Token& n = p.next();
 	if(isAnyOf(n.type, 
 				TokenType::REAL_C, TokenType::INT_C, TokenType::STR_C,
-				TokenType::TRUE, TokenType::FALSE)){
+				TokenType::TRUE, TokenType::FALSE, TokenType::CHAR_C)){
 		res.primtype = n.type;
 		res.main = n.literal;
 		return res;
@@ -316,12 +321,18 @@ public:
 	const struct All {
 		bool is_array;
 		Expr *start, *end;
-		TokenType name;
+		union Name {
+			Type *rec;
+			TokenType tok;
+			Name(TokenType t): tok(t) {} 
+			Name(Type *t): rec(t) {}
+			Name() {}
+		} name;
 	} all;
 	inline bool is_array() const noexcept { return all.is_array; }
 	inline const Expr *start() const noexcept { return all.start; }
 	inline const Expr *end() const noexcept { return all.end; }
-	inline TokenType name() const noexcept { return all.name; }
+	inline All::Name name() const noexcept { return all.name; }
 	static All make_all(Parser& p){
 		All res;
 		if(p.match_type(TokenType::ARRAY)){
@@ -331,14 +342,19 @@ public:
 			p.expect_type(TokenType::COLON);
 			res.end = new Expr(p);
 			p.expect_type(TokenType::RIGHT_SQ);
-		}
-		for(const auto type : type_keywords){
-			if(p.match_type(type)){
-				res.name = type;
-				return res;
+			p.expect_type(TokenType::OF);
+			res.name.rec = new Type(p);
+			return res;
+		} else {
+			res.is_array = false;
+			for(const auto type : type_keywords){
+				if(p.match_type(type)){
+					res.name = type;
+					return res;
+				}
 			}
+			p.error("Invalid type name");
 		}
-		p.error("Invalid type name");
 	}
 	Type(Parser& p): all(make_all(p)) {}
 	// friend operator<< {{{
@@ -348,8 +364,10 @@ public:
 			os << "ARRAY[";
 			os << (*type.all.start) << ':' << (*type.all.end);
 			os << "] OF ";
+			os << (*type.all.name.rec);
+		} else {
+			os << tokenTypeToStr(type.all.name.tok);
 		}
-		os << tokenTypeToStr(type.name());
 		os << '}';
 		return os;
 	}
@@ -673,3 +691,5 @@ void Parser::parse(){
 }
 
 // }}}
+
+#endif /* PARSER_HPP */

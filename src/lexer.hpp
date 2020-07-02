@@ -87,6 +87,7 @@
 	TOK(STR_C)\
 	TOK(INT_C)\
 	TOK(REAL_C)\
+	TOK(CHAR_C)\
 	TOK(INVALID)
 
 // }}}
@@ -180,11 +181,13 @@ struct Token {
 		std::string_view str;
 		int64_t i64;
 		Fraction<> frac;
+		char c;
 		Literal(std::string_view str_): str(str_) {}
 		Literal(int64_t i): i64(i) {}
 		Literal(int i): i64(i) {}
 		Literal(Fraction<> frac_): frac(frac_) {}
 		Literal(const char *p) : str(p) {}
+		Literal(const char c_) : c(c_) {}
 	} literal;
 	Token(size_t line_, size_t col_, TokenType type_, Literal lit_) :
 		line(line_), col(col_), type(type_), literal(lit_) {}
@@ -195,6 +198,7 @@ struct Token {
 			&& (type == TokenType::REAL_C ? literal.frac == other.literal.frac :
 				type == TokenType::INT_C || type == TokenType::IDENTIFIER ? literal.i64 == other.literal.i64 :
 				type == TokenType::STR_C ? literal.str == other.literal.str :
+				type == TokenType::CHAR_C ? literal.c == other.literal.c :
 				/* has to be a reserved word or token, so is true */ true);
 	}
 	/* Make Catch2 print our type */
@@ -209,6 +213,8 @@ struct Token {
 		} else if(tok.type == TokenType::STR_C){
 			// Str
 			os << ".str = " << tok.literal.str;
+		} else if(tok.type == TokenType::CHAR_C){
+			os << ".c = " << tok.literal.c;
 		} else {
 			// tok.type == TokenType::INT_C || t.type == TokenType::IDENTIFIER or is reserved word
 			os << ".i64 = " << tok.literal.i64;
@@ -405,6 +411,13 @@ protected:
 				case ',': emit(TokenType::COMMA); break;
 				case '-': emit(TokenType::MINUS); break;
 				case '+': emit(TokenType::PLUS); break;
+				case '\'':
+					{
+						char c = next();
+						emit(TokenType::CHAR_C, c, curr - 2);
+						expect('\'');
+					}
+					break;
 				case '/': 
 					if(match('/')){
 						// comment

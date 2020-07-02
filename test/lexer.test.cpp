@@ -15,7 +15,8 @@ TEST_CASE("Lexing", "[lex]"){
 				"2 3.0 4.999 5 ENDFUNCTION\n"
 				"\"str\"\n"
 				"newline\n"
-				"<- < -"
+				"<- < -\n"
+				"'#'"
 				);
 		std::vector<Token> expected = {
 			// Order: line, col, type, literal
@@ -38,7 +39,8 @@ TEST_CASE("Lexing", "[lex]"){
 			{  8, 1, TokenType::IDENTIFIER, 2 }, // Should be same identifier number as `newline`
 			{  9, 1, TokenType::ASSIGN, 0 },
 			{  9, 4, TokenType::LT, 0 },
-			{  9, 6, TokenType::MINUS, 0 }
+			{  9, 6, TokenType::MINUS, 0 },
+			{ 10, 1, TokenType::CHAR_C, '#' }
 		};
 		REQUIRE(lex.output == expected);
 	}
@@ -85,6 +87,7 @@ TEST_CASE("Lexing", "[lex]"){
 			Lexer tmp(cont);
 		} catch(LexError& e){
 			failed = true;
+			UNSCOPED_INFO("Error is " << e.what());
 		}
 		REQUIRE(should_pass != failed);
 	}
