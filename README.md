@@ -34,7 +34,7 @@ In order to use it, you can write your code in a file in that directory, and the
 
 ## What is there left to do?
 - [x] lexer
-- [ ] parser
+- [x] parser
 - [ ] interpreter
 - [ ] CLI
 - [ ] VSCode extension

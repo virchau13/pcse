@@ -1,0 +1,54 @@
+#ifndef VM_HPP
+#define VM_HPP
+
+#include <iostream>
+#include <cstdint>
+#include <vector>
+
+#include "date.hpp"
+#include "fraction.hpp"
+#include "bytecode.hpp"
+
+class VMError : public std::runtime_error {
+public:
+	template<typename... Args> 
+	VMError(Args... args) : std::runtime_error(args...) {}
+};
+
+class VM {
+	const uint8_t * const instr;
+
+	union Value {
+		int64_t i64;
+		Fraction<> frac;
+		std::string *str;
+		bool b;
+		Date date;
+		char c;
+	};
+
+public:
+	std::vector<Value> const_pool; // constant pool
+	std::vector<Value> stack;
+private:
+	size_t ip = 0; /* Instruction pointer */
+	size_t bp = 0; /* Stack base pointer */
+	size_t sp = 0; /* Stack top pointer */
+
+	void run(){
+		while(ip < instr.size()){
+			switch(instr[ip]){
+			}
+		}
+	}
+
+	VM(std::vector<uint8_t> info){
+		/* PCSE bytecode files start with
+		 * 0 1 2 3 4 5 6 7 8 | byte pos
+		 * p c b c <PLSIZE >
+		 * where <PLSIZE> is the 32-bit size of the constant pool (little-endian.)
+		 */
+	}
+};
+
+#endif /* VM_HPP */

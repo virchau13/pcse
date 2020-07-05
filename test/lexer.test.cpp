@@ -65,6 +65,17 @@ TEST_CASE("Lexing", "[lex]"){
 			REQUIRE(lex.output[i].literal.i64 == 0);
 		}
 	}
+	{
+		/* When I first wrote this test.
+		 * I wrote "21/20/2019".
+		 * Seriously.
+		 * That's 15 minutes of my life I am never getting back.
+		 */
+		Lexer lex(" 21/11/2019");
+		REQUIRE(lex.output.size() == 1);
+		const Token expected = { 1, 2, TokenType::DATE_C, Date(21, 11, 2019) };
+		REQUIRE(lex.output[0] == expected);
+	}
 	for(const auto& file : fs::directory_iterator("test/lex-files")){
 		const std::string name = file.path().filename().string();
 		INFO("File is " << name);

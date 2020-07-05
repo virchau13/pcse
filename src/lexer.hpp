@@ -14,6 +14,7 @@
 
 #include "fraction.hpp"
 #include "utils.hpp"
+#include "date.hpp"
 
 // Token list {{{
 
@@ -88,6 +89,7 @@
 	TOK(INT_C)\
 	TOK(REAL_C)\
 	TOK(CHAR_C)\
+	TOK(DATE_C)\
 	TOK(INVALID)
 
 // }}}
@@ -175,19 +177,22 @@ const std::string MAX_INT_STR = std::to_string(std::numeric_limits<int64_t>::max
 // Token {{{
 
 struct Token {
-	const size_t line, col;
-	const TokenType type;
-	const union Literal {
+	size_t line, col;
+	TokenType type;
+	union Literal {
 		std::string_view str;
 		int64_t i64;
 		Fraction<> frac;
 		char c;
+		Date date;
 		Literal(std::string_view str_): str(str_) {}
 		Literal(int64_t i): i64(i) {}
 		Literal(int i): i64(i) {}
 		Literal(Fraction<> frac_): frac(frac_) {}
 		Literal(const char *p) : str(p) {}
 		Literal(const char c_) : c(c_) {}
+		Literal(uint8_t day, uint8_t month, uint16_t year): date(day, month, year) {}
+		Literal(Date d): date(d) {}
 	} literal;
 	Token(size_t line_, size_t col_, TokenType type_, Literal lit_) :
 		line(line_), col(col_), type(type_), literal(lit_) {}
@@ -226,6 +231,8 @@ struct Token {
 
 // }}}
 
+const Token invalid_token(0, 0, TokenType::INVALID, 0);
+
 // Lexer {{{
 
 class LexError : public std::runtime_error {
@@ -245,6 +252,24 @@ protected:
 	std::map<std::string_view, int64_t> id_num;
 	size_t line = 1;
 	size_t curr = 0;
+
+	/* <=DATE CAPTURING=>
+	 * To capture dates, the Lexer
+	 * turns anything of the form INT_C SLASH INT_C SLASH INT_C
+	 * into a Date.
+	 * There is no other way to avoid the ambiguity 
+	 * without being excessively complicated,
+	 * and really, why would anyone write 1 / 2 / 3 ? just write (1/2)/3
+	 *
+	 * This date_stage variable captures the "progress".
+	 * As the tokens are generated, this happens to date_stage:
+	 * date_stage | 0     1     2     3     4     5
+	 * tokens     | (any) INT_C SLASH INT_C SLASH INT_C
+	 * If anything gets in the way, date_stage will be reset to 0.
+	 * If it's five, all the INT_C's and SLASH's will get removed, 
+	 * and a DATE_C inserted in their place.
+	 */
+	uint_least8_t date_stage = 0;
 
 	// done()/peek()/next() like functions {{{
 	inline size_t getCol() const noexcept {
@@ -465,6 +490,39 @@ protected:
 					}
 					break;
 
+			}
+			if(output.size()){
+				/* See <=DATE CAPTURING=>. */
+				if(date_stage % 2 == 0 && output.back().type == TokenType::INT_C){
+					date_stage++;
+					if(date_stage == 5){
+						// A Date token should replace the rest.
+						auto it = output.end() - 5;
+						const size_t line = it->line,
+							  col = it->col;
+						const size_t day = it->literal.i64;
+						++it; ++it;
+						const size_t month = it->literal.i64;
+						++it; ++it;
+						const size_t year = it->literal.i64;
+						output.resize(output.size() - 5, invalid_token);
+#define MAX_VAL(x) std::numeric_limits<decltype(Date:: x)>::max()
+						if(day > MAX_VAL(day) || month > MAX_VAL(month) || year > MAX_VAL(year)){
+							error("Too large Date constant. Note: if you mean to specify division, use parentheses");
+						}
+#undef MAX_VAL
+						try {
+							output.emplace_back(line, col, TokenType::DATE_C, Date(day, month, year));
+						} catch(DateError& e){
+							error(e.what());
+						}
+						date_stage = 0;
+					}
+				} else if(date_stage % 2 == 1 && output.back().type == TokenType::SLASH){
+					date_stage++;
+				} else {
+					date_stage = 0;
+				}
 			}
 		}
 	}

@@ -262,6 +262,13 @@ public:
 		res -= other;
 		return res;
 	}
+
+	// Unary minus
+	inline Fraction operator-() const noexcept {
+		Fraction res = *this;
+		res.top = -res.top;
+		return res;
+	}
 	// }}}
 	
 	// Friends {{{

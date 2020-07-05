@@ -326,7 +326,7 @@ Primary::All Primary::make_all(Parser& p){
 			}
 		} else {
 			/* normal lvalue */
-			res.primtype = TokenType::IDENTIFIER;
+			res.primtype = TokenType::IDENTIFIER);
 			// tell LValue we've already consumed an identifier
 			// (it checks if id == 0, and since id > 0 for any valid id, it's fine)
 			res.main.lvalue = LValue(p, n.literal.i64);
@@ -557,10 +557,7 @@ public:
 	void stmt(Parser& p, const Token& t){
 		switch(t.type){
 			case TokenType::IDENTIFIER: form = StmtForm::ASSIGN;
-				/* We already considered the identifier, 
-				 * tell LValue that.
-				 */
-				lvalues.emplace_back(p, t.literal.i64);
+				lvalues.emplace_back(p);
 				p.expect_type(TokenType::ASSIGN);
 				exprs.emplace_back(p);
 				break;
