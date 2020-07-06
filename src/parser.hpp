@@ -5,8 +5,6 @@
 #include <vector>
 #include "lexer.hpp"
 
-// TODO: implement Date
-
 class ParseError : public std::runtime_error {
 public:
 	const Token token;
