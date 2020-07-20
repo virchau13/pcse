@@ -4,6 +4,7 @@
 #include <map>
 #include <vector>
 #include "lexer.hpp"
+#include "environment.hpp"
 
 class ParseError : public std::runtime_error {
 public:
@@ -83,6 +84,7 @@ public:
 	}
 
 	void parse();
+	void run(Env& env);
 };
 
 // }}}
@@ -100,8 +102,13 @@ std::ostream& operator<<(std::ostream& os, const Expr& expr) noexcept;
 class LValue {
 public:
 	int64_t id;
-	Expr *expr = nullptr;
+	std::vector<Expr> *indexes = nullptr;
 	LValue(Parser& p, int64_t id = 0);
+	Env::Value& ref(Env& env) const;
+	Env::Value eval(Env& env) const;
+	inline EType type(const Env& env) const {
+		return env.getType(id);
+	}
 };
 
 class Primary {
@@ -123,13 +130,10 @@ public:
 	} all;
 	All::Main main() const noexcept { return all.main; }
 	TokenType primtype() const noexcept { return all.primtype; }
-	inline bool is_constant() const noexcept {
-		return isAnyOf(all.primtype,
-				TokenType::STR_C, TokenType::INT_C, TokenType::REAL_C,
-				TokenType::CHAR_C, TokenType::TRUE, TokenType::FALSE);
-	}
 	static All make_all(Parser& p);
 	Primary(Parser& p) : all(make_all(p)) {}
+	Env::Value eval(Env& env) const;
+	EType type(Env& env) const;
 	// friend operator<< {{{
 	/* make easier to debug */
 	friend std::ostream& operator<<(std::ostream& os, const Primary& p) noexcept {
@@ -160,6 +164,7 @@ public:
 						os << ", ";
 					}
 				}
+				os << ')';
 				break;
 			CASE(INVALID):
 				os << '(' << *p.main().expr << ')';
@@ -206,10 +211,11 @@ public:
 			return new UnaryExpr(p);
 		}
 	}
-	inline bool is_constant() const noexcept {
-		return (op == TokenType::INVALID ? main.primary->is_constant() : main.unexpr->is_constant());
-	}
 	UnaryExpr(Parser& p) : op(make_op(p)), main(make_main(op, p)) {}
+	Env::Value eval(Env& env) const;
+	inline EType type(Env& env) const {
+		return (op == TokenType::INVALID ? main.primary->type(env) : main.unexpr->type(env));
+	}
 	// friend operator<< {{{
 	friend std::ostream& operator<<(std::ostream& os, const UnaryExpr& un) noexcept {
 		os << '{';
@@ -226,7 +232,7 @@ public:
 	// }}}
 };
 
-static const std::vector<TokenType> binary_ops[] = {
+const std::vector<TokenType> binary_ops[] = {
 	{ TokenType::OR },
 	{ TokenType::AND },
 	{ TokenType::EQ, TokenType::GT, TokenType::LT, TokenType::GT_EQ, TokenType::LT_EQ, TokenType::LT_GT },
@@ -242,66 +248,68 @@ class BinExpr {
 public:
 	using LowerExpr = typename std::conditional<(Level < MAX_BINARY_LEVEL), BinExpr<Level+1>, UnaryExpr>::type;
 
-	// Must always be read like: exprs[0], ops[0], exprs[1], ops[1], exprs[2], ...
-	std::vector<TokenType> ops;
-	std::vector<LowerExpr> exprs;
-	BinExpr(Parser& p){
-		for(;;){
-			// parse left
-			exprs.emplace_back(p);
-			// parse operator
-			TokenType op = TokenType::INVALID;
-			for(const auto type : binary_ops[Level]){
-				if(p.match_type(type)){
-					op = type;
-					break;
-				}
-			}
-			if(op == TokenType::INVALID){
-				/* Return now, we're done. */
-				return;
-			} else {
-				ops.push_back(op);
-				/* Expect the loop to continue to parse the next
-				 * LowerExpr, so don't do anything.
-				 */
+	LowerExpr left;
+	struct Opt {
+		TokenType op;
+		BinExpr<Level> *right;
+	} opt;
+
+	static Opt make_opt(Parser& p){
+		for(const auto op_type : binary_ops[Level]){
+			if(p.match_type(op_type)){
+				/* valid operator */
+				return { op_type, new BinExpr<Level>(p) };
 			}
 		}
+		// no operator
+		return { TokenType::INVALID, nullptr };
 	}
+	
+	BinExpr(Parser& p) : left(p), opt(make_opt(p)) {}
+	Env::Value eval(Env& env) const;
+	EType type(Env& env) const;
 	// friend operator<< {{{
 	friend std::ostream& operator<<(std::ostream& os, const BinExpr<Level>& b) noexcept {
 		os << '{';
-		for(size_t i = 0; i < b.ops.size(); i++){
-			os << b.exprs[i] << ' ' << opToStr(b.ops[i]) << ' ';
+		os << b.left; 
+		if(b.opt.op != TokenType::INVALID){
+			os << ' ' << opToStr(b.opt.op) << ' ' << *b.opt.right;
 		}
-		os << b.exprs.back();
 		os << '}';
 		return os;
 	}
 	// }}}
 };
 
-LValue::LValue(Parser& p, int64_t id){
+LValue::LValue(Parser& p, int64_t id_) : id(id_) {
 	if(id == 0){
-		// No pre-consumed identifier
+		// No pre-consumed identifier, so we consume one
 		id = p.expect_type_r(TokenType::IDENTIFIER).literal.i64;
 	}
 	if(p.match_type(TokenType::LEFT_SQ)){
-		// identifier LEFT_SQ expr RIGHT_SQ
+		// identifier { LEFT_SQ expr RIGHT_SQ }
 		// (array access)
-		// we distinguish between this and array access by letting expr == nullptr by default.
-		expr = new Expr(p);
-		p.expect_type(TokenType::RIGHT_SQ);
+		// we distinguish between this and array access by letting indexes == nullptr by default
+		indexes = new std::vector<Expr>();
+		for(;;){
+			indexes->emplace_back(p);
+			p.expect_type(TokenType::RIGHT_SQ);
+			if(!p.match_type(TokenType::LEFT_SQ)) break;
+			/* consume next index */
+		}
 	}
 }
+
+const std::vector<TokenType> const_types = {
+	TokenType::REAL_C, TokenType::INT_C, TokenType::STR_C,
+    TokenType::TRUE, TokenType::FALSE, TokenType::CHAR_C,
+    TokenType::DATE_C
+};
 
 Primary::All Primary::make_all(Parser& p){
 	All res = {TokenType::INVALID, 0, 0};
 	const Token& n = p.next();
-	if(isAnyOf(n.type, 
-				TokenType::REAL_C, TokenType::INT_C, TokenType::STR_C,
-				TokenType::TRUE, TokenType::FALSE, TokenType::CHAR_C,
-				TokenType::DATE_C)){
+	if(isAnyOf(n.type, const_types)){
 		/* literal */
 		res.primtype = n.type;
 		res.main = n.literal;
@@ -380,6 +388,7 @@ public:
 		}
 	}
 	Type(Parser& p): all(make_all(p)) {}
+	EType to_etype(Env& env, bool is_top = true) const;
 	// friend operator<< {{{
 	friend std::ostream& operator<<(std::ostream& os, const Type& type){
 		os << '{';
@@ -406,11 +415,9 @@ public:
 		return p.match_type(TokenType::BYREF);
 	}
 	static int64_t make_ident(Parser& p){
-		if(p.peek().type != TokenType::IDENTIFIER){
-			/* will show error */
-			p.expect_type(TokenType::IDENTIFIER);
-		}
-		return p.next().literal.i64;
+		int64_t id = p.expect_type_r(TokenType::IDENTIFIER).literal.i64;
+		p.expect_type(TokenType::COLON); // `x: INTEGER`, colon after id
+		return id;
 	}
 	Param(Parser& p) : byref(make_byref(p)), ident(make_ident(p)), type(p) {}
 	// friend operator<< {{{
@@ -442,7 +449,8 @@ public:
 	FORM(FOR)\
 	FORM(REPEAT)\
 	FORM(WHILE)\
-	FORM(CALL)
+	FORM(CALL)\
+	FORM(RETURN)
 
 enum class StmtForm {
 #define FORM(x) x,
@@ -486,11 +494,13 @@ bool isValidStmtStart(const TokenType type) noexcept {
 class Block {
 public:
 	std::vector<Stmt<false>> stmts;
-	Block(Parser& p){
-		while(isValidStmtStart(p.peek().type)){
-			stmts.emplace_back(p);
+	bool is_func;
+	Block(Parser& p, bool is_func_ = false) : is_func(is_func_) {
+		while(isValidStmtStart(p.peek().type) || (is_func && p.peek().type == TokenType::RETURN)){
+			stmts.emplace_back(p, is_func);
 		}
 	}
+	const Expr *eval(Env& env) const;
 	// friend operator<< {{{
 	friend std::ostream& operator<<(std::ostream& os, const Block& b) noexcept {
 		os << "{\n";
@@ -511,6 +521,7 @@ public:
 			stmts.emplace_back(p);
 		}
 	}
+	void eval(Env& env) const;
 	// friend operator<< {{{
 	friend std::ostream& operator<<(std::ostream& os, const Program& p) noexcept {
 		os << "{\n";
@@ -552,7 +563,7 @@ public:
 	}
 #define CASE(x) case TokenType:: x: form = StmtForm:: x;
 #define CONSUME_ID() p.expect_type_r(TokenType::IDENTIFIER).literal.i64
-	void stmt(Parser& p, const Token& t){
+	void stmt(Parser& p, const Token& t, bool is_func){
 		switch(t.type){
 			case TokenType::IDENTIFIER: form = StmtForm::ASSIGN;
 				/* We already considered the identifier, 
@@ -571,9 +582,9 @@ public:
 			CASE(IF)
 				exprs.emplace_back(p);
 				p.expect_type(TokenType::THEN);
-				blocks.emplace_back(p);
+				blocks.emplace_back(p, is_func);
 				if(p.match_type(TokenType::ELSE)){
-					blocks.emplace_back(p);
+					blocks.emplace_back(p, is_func);
 				}
 				p.expect_type(TokenType::ENDIF);
 				break;
@@ -583,9 +594,9 @@ public:
 				for(;;){
 					exprs.emplace_back(p);
 					p.expect_type(TokenType::COLON);
-					blocks.emplace_back(p);
+					blocks.emplace_back(p, is_func);
 					if(p.match_type(TokenType::OTHERWISE)){
-						blocks.emplace_back(p);
+						blocks.emplace_back(p, is_func);
 						p.expect_type(TokenType::ENDCASE);
 						break;
 					}
@@ -603,34 +614,39 @@ public:
 				if(p.match_type(TokenType::STEP)){
 					exprs.emplace_back(p);
 				}
-				blocks.emplace_back(p);
+				blocks.emplace_back(p, is_func);
 				p.expect_type(TokenType::NEXT);
 				break;
 			CASE(REPEAT)
-				blocks.emplace_back(p);
+				blocks.emplace_back(p, is_func);
 				p.expect_type(TokenType::UNTIL);
 				exprs.emplace_back(p);
 				break;
 			CASE(WHILE)
 				exprs.emplace_back(p);
 				p.expect_type(TokenType::DO);
-				blocks.emplace_back(p);
+				blocks.emplace_back(p, is_func);
 				p.expect_type(TokenType::ENDWHILE);
 				break;
 			CASE(CALL)
 				ids.push_back(CONSUME_ID());
 				if(p.match_type(TokenType::LEFT_PAREN)){
-					paramlist(p);
+					exprlist(p);
 				}
 				p.expect_type(TokenType::RIGHT_PAREN);
 				break;
 			default:
-				p.error("Invalid start of statement");
+				if(is_func && t.type == TokenType::RETURN){
+					form = StmtForm::RETURN;
+					exprs.emplace_back(p);
+				} else {
+					p.error("Invalid start of statement");
+				}
 		}
 	}
-	void stmt(Parser& p){
+	inline void stmt(Parser& p, bool is_func){
 		const Token& t = p.next();
-		stmt(p, t);
+		stmt(p, t, is_func);
 	}
 	void topstmt(Parser& p){
 		const Token& t = p.next();
@@ -663,22 +679,23 @@ public:
 				}
 				p.expect_type(TokenType::RETURNS);
 				types.emplace_back(p);
-				blocks.emplace_back(p);
+				blocks.emplace_back(p, /* is_func */ true);
 				p.expect_type(TokenType::ENDFUNCTION);
 				break;
 			default:
-				stmt(p, t);
+				stmt(p, t, /* is not function */ false);
 		}
 	}
 #undef CASE
 #undef CONSUME_ID
-	Stmt(Parser& p){
+	Stmt(Parser& p, bool is_func = false){
 		if constexpr (TopLevel){
 			topstmt(p);
 		} else {
-			stmt(p);
+			stmt(p, is_func);
 		}
 	}
+	const Expr *eval(Env& env) const;
 	// friend operator<< {{{
 	friend std::ostream& operator<<(std::ostream& os, const Stmt<TopLevel>& stmt) noexcept {
 		os << '{';
@@ -711,10 +728,14 @@ public:
 
 // }}}
 
-// Parser::parse {{{
+// Parser::{parse, run} {{{
 
 void Parser::parse(){
 	output = new Program(*this);
+}
+
+void Parser::run(Env& env){
+	output->eval(env);
 }
 
 // }}}

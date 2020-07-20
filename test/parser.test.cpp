@@ -35,43 +35,8 @@ TEST_CASE("Parsing", "[parser]"){
 		REQUIRE(p.stmts[0].exprs.size() == 1);
 		{
 			// check if is in correct tree structure
-			// (sorry for messy code)
-			Expr& e0 = p.stmts[0].exprs[0];
-			REQUIRE(e0.exprs.size() == 1);
-			REQUIRE(e0.ops.size() == 0);
-			auto& e1 = e0.exprs[0];
-			REQUIRE(e1.exprs.size() == 1);
-			REQUIRE(e1.ops.size() == 0);
-			auto& e2 = e1.exprs[0];
-			REQUIRE(e2.exprs.size() == 1);
-			REQUIRE(e2.ops.size() == 0);
-			auto& e3 = e2.exprs[0];
-			REQUIRE(e3.exprs.size() == 2);
-			REQUIRE(e3.ops.size() == 1);
-			REQUIRE(e3.ops[0] == TokenType::PLUS);
-			{
-				auto& e4 = e3.exprs[0];
-				REQUIRE(e4.exprs.size() == 1);
-				REQUIRE(e4.ops.size() == 0);
-				auto& un = e4.exprs[0];
-				REQUIRE(un.op == TokenType::INVALID);
-				auto& prim = *un.main.primary;
-				REQUIRE(prim.primtype() == TokenType::INT_C);
-				REQUIRE(prim.main().lt.i64 == 2);
-			}
-			{
-				auto& e4 = e3.exprs[1];
-				REQUIRE(e4.exprs.size() == 2);
-				REQUIRE(e4.ops.size() == 1);
-				REQUIRE(e4.ops[0] == TokenType::STAR);
-				for(int64_t i = 0; i < 2; i++){
-					auto& un = e4.exprs[i];
-					REQUIRE(un.op == TokenType::INVALID);
-					auto& prim = *un.main.primary;
-					REQUIRE(prim.primtype() == TokenType::INT_C);
-					REQUIRE(prim.main().lt.i64 == 3 + i);
-				}
-			}
+			std::stringstream sstream;
+			sstream << p;
 		}
 	}
 
@@ -101,6 +66,13 @@ TEST_CASE("Parsing", "[parser]"){
 			}
 			UNSCOPED_INFO("Tokens are " << sstream.str() << '\n');
 			Parser p(tmp.output);
+			/* Despite this seeming useless, it actually serves two purposes.
+			 * (1) If the parser does not throw an exception but was supposed to, 
+			 *     this shows what it decoded into.
+			 * (2) It checks if the syntax tree is valid: if any part is logically inconsistent,
+			 *     it'll segfault due to it dereferencing a null pointer most of the time.
+			 *     :)
+			 */
 			UNSCOPED_INFO("Program is: \n" << *p.output << '\n');
 		} catch(ParseError& e){
 			failed = true;

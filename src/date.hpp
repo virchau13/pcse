@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <stdexcept>
+#include <ostream>
 
 struct DateError : public std::runtime_error {
 	template<typename... Args>
@@ -65,6 +66,13 @@ struct Date {
 	ltgt(>=);
 
 #undef ltgt
+
+	// friend operator<< {{{
+	inline friend std::ostream& operator<<(std::ostream& os, const Date& date){
+		os << (int)date.day << '/' << (int)date.month << '/' << (int)date.year;
+		return os;
+	}
+	// }}}
 };
 
 #endif

@@ -80,7 +80,7 @@ public:
 
 	// Constructors and operator= {{{
 
-	inline Fraction(num_t x) : top(x), bot(1) {}
+	explicit inline Fraction(num_t x) : top(x), bot(1) {}
 
 	inline Fraction(num_t top_, num_t bottom_): top(top_), bot(bottom_) {
 		simplify();
@@ -198,8 +198,7 @@ public:
 		return !operator==(other);
 	}
 
-#ifdef int64_t
-	inline std::enable_if_t<sizeof(num_t) <= 4, bool> operator<(const Fraction other){
+	inline std::enable_if_t<sizeof(num_t) <= 4, bool> operator<(const Fraction<num_t> other) const noexcept {
 		// literally just 64 bit hacks lmao
 		// a/b < c/d
 		// ad/bd < cb/db
@@ -210,7 +209,6 @@ public:
 		// which is below int64_t maximum
 		return (a*d) < (c*b);
 	}
-#endif
 
 	template<typename Int>
 	inline typename std::enable_if_t<std::numeric_limits<Int>::is_integer, bool> operator<(const Int other) const noexcept {
