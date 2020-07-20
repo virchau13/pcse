@@ -200,7 +200,7 @@ public:
 #define IFTYPE(x) if(type == Primitive:: x)
 		IFTYPE(INTEGER) out << val.i64;
 		else IFTYPE(REAL) out << val.frac.to_double();
-		else IFTYPE(BOOLEAN) out << (val.b ? "true" : "false");
+		else IFTYPE(BOOLEAN) out << (val.b ? "TRUE" : "FALSE");
 		else IFTYPE(CHAR) out << val.c;
 		else IFTYPE(DATE) out << val.date;
 		else IFTYPE(STRING) out << val.str;

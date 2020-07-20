@@ -27,6 +27,10 @@ void initArr(Env::Value *val, const Primitive primtype, const std::vector<std::p
 		initVar(val, primtype);
 		return;
 	}
+	// e.g. ARRAY[10:0]
+	if(bounds[currpos].first > bounds[currpos].second){
+		throw TypeError("Cannot have array with larger start index than end");
+	}
 	val->vals = new std::vector<Env::Value>(bounds[currpos].second - bounds[currpos].first + 1);
 	for(Env::Value& v : *val->vals){
 		initArr(&v, primtype, bounds, currpos+1);

@@ -70,4 +70,6 @@ fail:
 	}
 	Env env(lexer.identifier_count);
 	parser.run(env);
+
+	return EXIT_SUCCESS;
 }
