@@ -1,0 +1,23 @@
+// Declare a variable called name of type STRING
+DECLARE name: STRING
+// Assign to name the value "John Smith"
+name <- "John Smith"
+// Output the value stored in the variable name
+OUTPUT name
+
+// Different data types:
+DECLARE age: INTEGER
+age <- 14
+OUTPUT age
+
+DECLARE score: REAL
+score <- 0.5
+OUTPUT score
+
+DECLARE letter: CHAR
+letter <- 'a'
+OUTPUT letter
+
+DECLARE isCool: BOOLEAN
+isCool <- TRUE
+OUTPUT isCool
