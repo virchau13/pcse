@@ -2,11 +2,12 @@
 #define ENVIRONMENT_HPP
 
 #include <cstdint>
+#include <iostream>
 #include <vector>
 #include <map>
 #include <sstream>
 
-#include "lexer.hpp"
+#include "fraction.hpp"
 #include "date.hpp"
 
 struct RuntimeError : public std::runtime_error {

@@ -517,9 +517,13 @@ endcase:
 				}
 				// Create the loop variable in scope and remove it later.
 				// Keep the old var for restoring later.
-				const Env::Value old_val = env.getValue(ids[0]);
 				const EType old_type = env.getType(ids[0]);
-				const auto old_call_frame = env.getLevel(ids[0]);
+				Env::Value old_val;
+				int32_t old_call_frame;
+				if(old_type != Primitive::INVALID){
+					old_val = env.getValue(ids[0]);
+					old_call_frame = env.getLevel(ids[0]);
+				}
 				// Delete the old one and put in our own.
 				env.deleteVar(ids[0]);
 				env.setType(ids[0], is_frac ? Primitive::REAL : Primitive::INTEGER);
@@ -570,9 +574,11 @@ endcase:
 #undef LOOPCOND
 				// Restore the old variable.
 				env.deleteVar(ids[0]);
-				env.setType(ids[0], old_type);
-				env.value(ids[0]) = old_val;
-				env.setLevel(ids[0], old_call_frame);
+				if(old_type != Primitive::INVALID){
+					env.setType(ids[0], old_type);
+					env.value(ids[0]) = old_val;
+					env.setLevel(ids[0], old_call_frame);
+				}
 			}
 			break;
 		CASE(REPEAT):

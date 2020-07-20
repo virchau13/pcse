@@ -114,6 +114,17 @@ public:
 		 */
 		return env.getType(id).primtype;
 	}
+	// Friend operator<< {{{
+	friend std::ostream& operator<<(std::ostream& os, const LValue& lv){
+		os << '~' << lv.id;
+		if(lv.indexes != nullptr){
+			for(Expr& expr : *lv.indexes){
+				os << '[' << expr << ']';
+			}
+		}
+		return os;
+	}
+	// }}}
 };
 
 class Primary {
@@ -175,7 +186,7 @@ public:
 				os << '(' << *p.main().expr << ')';
 				break;
 			CASE(IDENTIFIER):
-				os << '~' << p.main().lt.i64;
+				os << p.main().lvalue;
 				break;
 			default:
 				break;
