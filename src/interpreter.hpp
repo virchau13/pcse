@@ -3,9 +3,6 @@
 
 #include "parser.hpp"
 
-// Primary, (Unary|Bin)Expr (all the eval() functions which actually return something) {{{
-
-
 
 template<typename... Args>
 void expectTypeEqual(const EType& t1, const Args&... args){
@@ -19,6 +16,33 @@ void expectTypeEqual(const EType& t1, const EType& t2){
 	if(t1 != t2){
 		throw TypeError("Bad type " + t1.to_str() + ", expected " + t2.to_str());
 	}
+}
+
+// callFunc, initVar {{{
+
+void initVar(Env::Value *val, const EType& etype);
+
+void initArr(Env::Value *val, const Primitive primtype, const std::vector<std::pair<int64_t,int64_t>> bounds, size_t currpos){
+	if(currpos >= bounds.size()){
+		initVar(val, primtype);
+		return;
+	}
+	val->vals = new std::vector<Env::Value>(bounds[currpos].second - bounds[currpos].first + 1);
+	for(Env::Value& v : *val->vals){
+		initArr(&v, primtype, bounds, currpos+1);
+	}
+}
+
+inline void initVar(Env::Value *val, const EType& etype){
+	// Only arrays need initialization (for now).
+	if(etype.is_array){
+		initArr(val, etype.primtype, etype.bounds, 0);
+	}
+}
+
+// Initializes a variable.
+inline void initVar(Env& env, int64_t id, const EType& type){
+	initVar(&env.value_unchecked(id), type);
 }
 
 // Calls a function.
@@ -47,6 +71,7 @@ const std::optional<Env::Value> callFunc(Env& env, int64_t id, const std::vector
 		expectTypeEqual(args[i].type(env), env.getType(p.ident));
 		env.value(p.ident) = args[i].eval(env);
 		env.setLevel(p.ident, env.call_number + 1);
+		initVar(env, p.ident, env.getType(p.ident));
 	}
 	env.call_number++;
 	const Expr *ret = func->blocks[0].eval(env);
@@ -72,6 +97,10 @@ const std::optional<Env::Value> callFunc(Env& env, int64_t id, const std::vector
 	}
 	return retval;
 }
+
+// }}}
+
+// Primary, (Unary|Bin)Expr (all the eval() functions which return `Env::Value`s) {{{
 
 Env::Value Primary::eval(Env& env) const {
 #define IF(x) if(all.primtype == TokenType:: x) 
@@ -128,7 +157,7 @@ Env::Value LValue::eval(Env& env) const {
 		for(size_t i = 0; i < type.bounds.size(); i++){
 			expectTypeEqual((*indexes)[i].type(env), Primitive::INTEGER);
 			const int64_t index = (*indexes)[i].eval(env).i64;
-			if(index < type.bounds[i].first || index >= type.bounds[i].second){
+			if(index < type.bounds[i].first || index > type.bounds[i].second){
 				throw RuntimeError("Out-of-bounds index " + std::to_string(index));
 			}
 			val = &(*val->vals)[index - type.bounds[i].first];
@@ -149,7 +178,7 @@ Env::Value& LValue::ref(Env& env) const {
 		for(size_t i = 0; i < type.bounds.size(); i++){
 			expectTypeEqual((*indexes)[i].type(env), Primitive::INTEGER);
 			const int64_t index = (*indexes)[i].eval(env).i64;
-			if(index < type.bounds[i].first || index >= type.bounds[i].second){
+			if(index < type.bounds[i].first || index > type.bounds[i].second){
 				throw RuntimeError("Out-of-bounds index " + std::to_string(index));
 			}
 			val = &(*val->vals)[index - type.bounds[i].first];
@@ -332,6 +361,7 @@ Env::Value BinExpr<Level>::eval(Env& env) const {
 
 // }}}
 
+// {Stmt<>, Block, Program}::{eval, type} {{{
 
 EType Type::to_etype(Env& env, bool is_top) const {
 	if(is_array()){
@@ -370,8 +400,12 @@ const Expr *Stmt<TopLevel>::eval(Env& env) const {
 #define CASE(x) case StmtForm:: x
 		switch(form){
 			CASE(DECLARE):
-				env.setType(ids[0], types[0].to_etype(env));
-				env.setLevel(ids[0], 0); /* global */
+				{
+					const EType type = types[0].to_etype(env);
+					env.setType(ids[0], type);
+					env.setLevel(ids[0], 0); /* global */
+					initVar(env, ids[0], type);
+				}
 				break;
 			CASE(CONSTANT):
 				env.setType(ids[0], exprs[0].type(env));
@@ -587,5 +621,7 @@ void Program::eval(Env& env) const {
 		stmt.eval(env);
 	}
 }
+
+// }}}
 
 #endif /* INTERPRETER_HPP */

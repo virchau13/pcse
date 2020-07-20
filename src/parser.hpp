@@ -107,7 +107,12 @@ public:
 	Env::Value& ref(Env& env) const;
 	Env::Value eval(Env& env) const;
 	inline EType type(const Env& env) const {
-		return env.getType(id);
+		/* Since arrays, no matter how many dimensions they have,
+		 * can only have one type of element,
+		 * we don't have to process everything:
+		 * we can just return the element type.
+		 */
+		return env.getType(id).primtype;
 	}
 };
 

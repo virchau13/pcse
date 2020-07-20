@@ -78,6 +78,8 @@ public:
 		return res;
 	}
 
+	inline double to_double() const noexcept { return (double)top / (double)bot; }
+
 	// Constructors and operator= {{{
 
 	explicit inline Fraction(num_t x) : top(x), bot(1) {}

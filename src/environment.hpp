@@ -145,6 +145,9 @@ public:
 		}
 		return var_vals[var];
 	}
+	inline Value& value_unchecked(int64_t var) noexcept {
+		return var_vals[var];
+	}
 	inline const Value& getValue(int64_t var) const {
 		if(!checkLevel(var) || getType(var) == Primitive::INVALID){
 			throw RuntimeError("Undefined variable");
@@ -194,7 +197,7 @@ public:
 	void output(const Env::Value val, const EType& type){
 #define IFTYPE(x) if(type == Primitive:: x)
 		IFTYPE(INTEGER) out << val.i64;
-		else IFTYPE(REAL) out << val.frac;
+		else IFTYPE(REAL) out << val.frac.to_double();
 		else IFTYPE(BOOLEAN) out << (val.b ? "true" : "false");
 		else IFTYPE(CHAR) out << val.c;
 		else IFTYPE(DATE) out << val.date;
