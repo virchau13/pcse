@@ -190,6 +190,7 @@ public:
 	var_call_level(identifier_count+1, 0) {}
 
 #ifdef TESTS
+public:
 	std::stringstream out;
 #else 
 	std::ostream& out = std::cout;
