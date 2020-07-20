@@ -11,12 +11,14 @@ I found out the reason they liked Java was because they could actually _run it_ 
 
 I've always wanted to write a programming language, so I decided to try it.
 
-## Using pcse
+## Getting Started
 In the future, there will be a VSCode extension to make installing easy. Since pcse is still in development, it must be built from scratch.  
 Note that these instructions are written so that (hopefully) a non-programmer can follow them. If you have trouble understanding anything, please open an issue!
-### Building prerequisites
+
+### Prerequisites
 Install [git](https://git-scm.com/) and a C++ compiler. (Note that the compiler must support C++17.) Then, install [CMake](https://cmake.org/).  
-(Optional) If you want to run the tests, install [Catch2](https://github.com/catchorg/Catch2/).
+(Optional) If you want to run the tests, install [Catch2](https://github.com/catchorg/Catch2/). If you don't, then comment out lines 13-14 of `CMakeLists.txt`.
+
 ### Building
 Open a terminal, and clone this repo:
 ```
@@ -31,6 +33,9 @@ make
 After the commands have finished, `pcse` will be built.
 In order to use it, you can write your code in a file in that directory, and then run `./pcse <filename>` in a terminal.
 
+### Documentation and Examples
+
+Documentation can be found in `docs/`, and examples can be found in `examples`. You can run a specific example by doing `./pcse examples/filename.pcse`.
 
 ## What is there left to do?
 - [x] lexer

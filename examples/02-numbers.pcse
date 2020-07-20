@@ -1,0 +1,3 @@
+// Numbers can also be outputted
+OUTPUT 1 // This will be ignored
+OUTPUT 1.0
