@@ -55,7 +55,7 @@ We can create variables to store our data through the following:
 DECLARE <identifier>: <type>
 ```
 
-`DECLARE` is the keyword used to create variables. The `identifier` is the name of the variable that we'll use to store data, and `type` is a data type from the list above. For example:
+DECLARE` is the keyword used to create variables. The `identifier` is the name of the variable that we'll use to store data, and `type` is a data type from the list above. For example:
 
 ```
 DECLARE name: STRING
@@ -120,7 +120,5 @@ By using *indexing*, we can both assign and access values within an array.
 // Accessing then printing a value
 OUTPUT <identifier>[<index>]
 ```
-
-
 
 ### Documentation is still in progress...
