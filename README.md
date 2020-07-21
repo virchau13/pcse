@@ -16,12 +16,8 @@ In the future, there will be a VSCode extension to make installing easy. Since p
 Note that these instructions are written so that (hopefully) a non-programmer can follow them. If you have trouble understanding anything, please open an issue!
 
 ### Prerequisites
-Install [git](https://git-scm.com/) and a C++ compiler. (Note that the compiler must support C++17.) Then, install [CMake](https://cmake.org/).  
-<<<<<<< HEAD
+Install [git](https://git-scm.com/) and a C++ compiler. (Note that the compiler must support C++17.) Then, install [CMake](https://cmake.org/).
 (Optional) If you want to run the tests, install [Catch2](https://github.com/catchorg/Catch2/).
-=======
-(Optional) If you want to run the tests, install [Catch2](https://github.com/catchorg/Catch2/). If you don't, then comment out lines 13-14 of `CMakeLists.txt`.
->>>>>>> 8c736a4306e91ad5cfeaa0df9d24c32efaba5961
 
 ### Building
 Open a terminal, and clone this repo:
@@ -39,11 +35,7 @@ In order to use it, you can write your code in a file in that directory, and the
 
 ### Documentation and Examples
 
-<<<<<<< HEAD
 Documentation can be found in `docs/`, and examples can be found in `examples/`. You can run a specific example by doing `./pcse examples/filename.pcse`.
-=======
-Documentation can be found in `docs/`, and examples can be found in `examples`. You can run a specific example by doing `./pcse examples/filename.pcse`.
->>>>>>> 8c736a4306e91ad5cfeaa0df9d24c32efaba5961
 
 ## What is there left to do?
 - [x] lexer
