@@ -6,7 +6,7 @@ You can read the styleguide [here](https://askpakchairul.files.wordpress.com/201
 
 If you're a more advanced user, we recommend reading `docs/grammar.ebnf`, which lists the keywords of `pcse`.
 
-If you prefer learning by example, you can check out `examples`.
+If you prefer learning by example, you can check out `examples/`.
 
 ## Getting Started
 
@@ -28,10 +28,10 @@ We can also tell pcse to output numbers:
 
 ```
 OUTPUT 1
-OUTPUT 1.0
+OUTPUT 1.5
 ```
 
-This will print `1` and `1.0`. As you can see, `1` and `1.0` are different from each other. The first will be printed without the decimal, but the second one will have the decimal. That is because they are of different types.
+This will print `1` and `1.5`. If we `OUTPUT 1.0`, pcse will simplify the `1.0` to `1`.
 
 ### Data Types
 
@@ -39,7 +39,7 @@ Data can be represented through the following ways in pcse:
 
 - An `INTEGER` stores whole numbers, like `1`, `2`, and `-3`.
 
-- A `REAL` can store whole numbers and numbers with a fractional part, like `0.5`, `-0.5`, and `0.0`.
+- A `REAL` can store real numbers, like `0.5`, `-0.5`, and `0.0`.
 
 - A `CHAR` stores a single character (both uppercase and lowercase), like `'A'`, `'b'`, and `'@'`. These are identified within single quotes.
 
@@ -80,5 +80,47 @@ OUTPUT name
 ```
 
 Check `examples/03-variables.pcse` for more examples on different variable types.
+
+### Arrays
+
+An array is a fixed-length data structure which is used to store multiple elements of the same data type together. We can declare an array using the following syntax:
+
+```
+DECLARE <identifier>: ARRAY[<lower_bound>:<upper_bound>] OF <type>
+```
+
+To create an array of  10 `STRING`s, we do the following:
+
+```
+DECLARE arrayOfStrings: ARRAY[0:9] OF STRING
+```
+
+The values of `lower_bound` and `upper_bound` can be any integer, so long as `lower_bound` <= `upper_bound`. Therefore, we can create an array of 10 `STRINGS` with a different `lower_bound` and `upper_bound`:
+
+```
+DECLARE arrayOfStrings: ARRAY[10:19] OF STRING
+DECLARE anotherArray: ARRAY[-10:-1] OF STRING
+```
+
+We can assign values to each element in the array by accessing each element individually:
+
+```
+DECLARE array: ARRAY[0:9] OF INTEGER
+array[0] <- 1
+array[1] <- 5
+```
+
+By using *indexing*, we can both assign and access values within an array. 
+
+```
+// Assigning a value
+<identifier>[<index>] <- <value>
+// Accessing a value
+<identifier>[<index>]
+// Accessing then printing a value
+OUTPUT <identifier>[<index>]
+```
+
+
 
 ### Documentation is still in progress...

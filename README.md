@@ -17,7 +17,7 @@ Note that these instructions are written so that (hopefully) a non-programmer ca
 
 ### Prerequisites
 Install [git](https://git-scm.com/) and a C++ compiler. (Note that the compiler must support C++17.) Then, install [CMake](https://cmake.org/).  
-(Optional) If you want to run the tests, install [Catch2](https://github.com/catchorg/Catch2/). If you don't, then comment out lines 13-14 of `CMakeLists.txt`.
+(Optional) If you want to run the tests, install [Catch2](https://github.com/catchorg/Catch2/).
 
 ### Building
 Open a terminal, and clone this repo:

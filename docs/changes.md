@@ -4,4 +4,4 @@ Several changes were made from the Cambridge IGCSE® Computer Science 0478 pseud
 
 ## BYREF
 
-The `BYREF` keyword was removed. Standing for "By Reference", there was only one point in the guidelines where it was used, but it was never explicitely explained.
+The `BYREF` keyword was removed. Standing for "By Reference", there was only one point in the guidelines where it was used, but it was never explicitly explained.
