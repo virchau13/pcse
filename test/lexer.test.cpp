@@ -41,7 +41,9 @@ TEST_CASE("Lexing", "[lex]"){
 			{  9, 1, TokenType::ASSIGN, 0 },
 			{  9, 4, TokenType::LT, 0 },
 			{  9, 6, TokenType::MINUS, 0 },
-			{ 10, 1, TokenType::CHAR_C, '#' }
+			{ 10, 1, TokenType::CHAR_C, '#' },
+			/* eof token */
+			{ 10, 4, TokenType::INVALID, 0 }
 		};
 		REQUIRE(lex.output == expected);
 	}
@@ -56,7 +58,8 @@ TEST_CASE("Lexing", "[lex]"){
 		Lexer lex(words);
 		std::stringstream sstream;
 		for(const auto& tok : lex.output) sstream << tok;
-		REQUIRE(lex.output.size() == cols.size());
+		/* eof token */
+		REQUIRE(lex.output.size() == cols.size() + 1);
 		INFO("lex.output is a vector of size " << lex.output.size() << " with types:\n" << sstream.str());
 		for(size_t i = 0; i < cols.size(); i++){
 			REQUIRE(lex.output[i].line == 1);
@@ -73,7 +76,7 @@ TEST_CASE("Lexing", "[lex]"){
 		 * That's 15 minutes of my life I am never getting back.
 		 */
 		Lexer lex(" 21/11/2019");
-		REQUIRE(lex.output.size() == 1);
+		REQUIRE(lex.output.size() == 2); // eof token
 		const Token expected = { 1, 2, TokenType::DATE_C, Date(21, 11, 2019) };
 		REQUIRE(lex.output[0] == expected);
 	}

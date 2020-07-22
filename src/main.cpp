@@ -57,19 +57,26 @@ fail:
 	in.seekg(0, std::ios::beg);
 	in.read(&source[0], source.size());
 	in.close();
+
+#define CATCH(name) \
+	catch(name &e) { \
+		std::cout << #name << ": " << e.what() << '\n'; \
+	}
 	
-	Lexer lexer(source);
-	if(print_tokens){
-		for(const auto& token : lexer.output){
-			std::cerr << token << '\n';
+	try {
+		Lexer lexer(source);
+		if(print_tokens){
+			for(const auto& token : lexer.output){
+				std::cerr << token << '\n';
+			}
 		}
-	}
-	Parser parser(lexer.output);
-	if(print_tree){
-		std::cerr << *parser.output << '\n';
-	}
-	Env env(lexer.identifier_count);
-	parser.run(env);
+		Parser parser(lexer.output);
+		if(print_tree){
+			std::cerr << *parser.output << '\n';
+		}
+		Env env(lexer.identifier_count);
+		parser.run(env);
+	} CATCH(LexError) CATCH(ParseError) CATCH(TypeError) CATCH(RuntimeError);
 
 	return EXIT_SUCCESS;
 }

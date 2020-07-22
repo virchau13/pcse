@@ -528,7 +528,11 @@ protected:
 	}
 	// }}}
 public:
-	inline Lexer(const std::string_view source_) : source(source_) { lex(); }
+	inline Lexer(const std::string_view source_) : source(source_) { 
+		lex();
+		// add an EOF token
+		emit(TokenType::INVALID, 0, source.size());
+	}
 };
 
 // }}}

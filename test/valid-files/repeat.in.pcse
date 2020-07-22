@@ -1,0 +1,7 @@
+// REPEAT UNTIL repeats until the condition is _true_.
+DECLARE x: INTEGER
+x <- 3
+REPEAT
+	OUTPUT x
+	x <- x - 1
+UNTIL x = 0

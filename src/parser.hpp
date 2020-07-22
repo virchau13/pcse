@@ -34,7 +34,8 @@ public:
 	inline Parser(const std::vector<Token>&& tokens_) : tokens(std::move(tokens_)) { parse(); }
 	inline ~Parser();
 	inline bool done() const noexcept {
-		return curr >= tokens.size();
+		// eof token
+		return curr >= tokens.size() - 1;
 	}
 	// LL(1) :D
 	inline const Token& peek() const noexcept {
@@ -67,10 +68,14 @@ public:
 		} else return false;
 	}
 	template<typename T>
-	[[noreturn]] inline void error(const T msg) const {
+	[[noreturn]] void error(const T msg) const {
 		throw ParseError(tokens[curr-1], msg);
 	}
 	inline void expect_type(TokenType type){
+		if(done()) {
+			std::string toktype = std::string(tokenTypeToStr(type));
+			error("Expected " + toktype + ", but file ended early");
+		}
 		if(!match_type(type)){
 			std::string msg = "Expected ";
 			msg += tokenTypeToStr(type);
