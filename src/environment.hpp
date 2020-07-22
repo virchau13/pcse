@@ -24,11 +24,11 @@ enum class Primitive {
 	INVALID
 };
 
-std::vector<std::string> primitive_to_str = {
+const std::vector<std::string> primitive_to_str = {
 	"INTEGER", "STRING", "CHAR", "REAL", "DATE", "BOOLEAN", "INVALID"
 };
 
-std::string_view primitiveToStr(const Primitive p){
+inline std::string_view primitiveToStr(const Primitive p){
 	return primitive_to_str[static_cast<int>(p)];
 }
 

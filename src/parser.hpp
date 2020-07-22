@@ -342,7 +342,7 @@ public:
 	// }}}
 };
 
-LValue::LValue(Parser& p, int64_t id_) : id(id_) {
+inline LValue::LValue(Parser& p, int64_t id_) : id(id_) {
 	if(id == 0){
 		// No pre-consumed identifier, so we consume one
 		id = p.expect_type_r(TokenType::IDENTIFIER).literal.i64;
@@ -367,7 +367,7 @@ const std::vector<TokenType> const_types = {
     TokenType::DATE_C
 };
 
-Primary::Primary(Parser& p) {
+inline Primary::Primary(Parser& p) {
 	const Token& n = p.next();
 	if(isAnyOf(n.type, const_types)){
 		/* literal */
@@ -409,7 +409,7 @@ Primary::Primary(Parser& p) {
 	}
 }
 
-Primary::~Primary() {
+inline Primary::~Primary() {
 	/* If it's a const type we don't have to do anything */
 	if(!isAnyOf(all.primtype, const_types)){
 		if(all.primtype == TokenType::CALL){
@@ -546,7 +546,7 @@ const std::vector<std::string_view> stmtform_to_str = {
 #undef FORM
 };
 
-std::string_view stmtformToStr(const StmtForm form){
+inline std::string_view stmtformToStr(const StmtForm form){
 	return stmtform_to_str[static_cast<int>(form)];
 }
 
@@ -566,7 +566,7 @@ const std::vector<TokenType> valid_stmt_starts = {
 	TokenType::CALL,
 };
 
-bool isValidStmtStart(const TokenType type) noexcept {
+inline bool isValidStmtStart(const TokenType type) noexcept {
 	for(const auto t : valid_stmt_starts){
 		if(t == type) return true;
 	} 
@@ -818,12 +818,12 @@ public:
 
 // Parser::{parse, run, ~Parser} {{{
 
-void Parser::parse(){
+inline void Parser::parse(){
 	output = new Program(*this);
 }
 
  
-void Parser::run(Env& env){
+inline void Parser::run(Env& env){
 	output->eval(env);
 }
 

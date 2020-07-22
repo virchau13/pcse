@@ -11,12 +11,6 @@ struct Test {
 	Test(const std::string_view sv): lex(sv), p(lex.output) {}
 };
 
-Program *test_string(const std::string_view sv){
-	Lexer tmp(sv);
-	Parser p(tmp.output);
-	return p.output;
-}
-
 TEST_CASE("Parsing", "[parser]"){
 
 	{
