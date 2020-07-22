@@ -9,8 +9,12 @@ bool endsWith(const std::string& name, const std::string_view ext){
 	return name.size() >= ext.size() && name.compare(name.size()-ext.size(), ext.size(), ext) == 0;
 }
 
-std::string readFile(const std::string& file){
-	std::ifstream in(file, std::ios::in);
+std::string readFile(const std::string& filepath){
+	INFO("Filepath is " << filepath);
+	std::ifstream in(filepath.c_str(), std::ios::in);
+	if(!in){
+		throw std::runtime_error("x");
+	}
 	std::string cont;
 	in.seekg(0, std::ios::end);
 	cont.resize(in.tellg());
@@ -27,11 +31,27 @@ TEST_CASE("INTERPRETING", "[interpreter]"){
 		INFO("File is " << name);
 		if(!endsWith(name, ".in.pcse")) continue; /* we don't want to look at this file */
 		
-		Lexer lex(readFile(name));
-		Parser parser(lex.output);
-		Env env(lex.identifier_count);
-		parser.run(env);
-		const std::string correct = readFile(name.substr(0, name.size() - strlen(".in.pcse")) + ".out");
-		REQUIRE(env.out.str() == correct);
+		std::string contents = readFile(file.path().c_str());
+		/* Lexer::Lexer uses a std::string_view, so we have to destroy it _before_ contents */
+		{
+			Lexer lex(contents);
+			Parser parser(lex.output);
+			Env env(lex.identifier_count);
+			parser.run(env);
+			std::string outname = file.path().c_str();
+			// ".in.pcse" => ".out"
+			{
+				std::string out = ".out";
+				int len = strlen(".in.pcse") - out.size();
+				while(len--){
+					outname.pop_back();
+				}
+				for(size_t i = 0; i < out.size(); i++){
+					outname[i + outname.size() - out.size()] = out[i];
+				}
+			}
+			const std::string correct = readFile(outname);
+			REQUIRE(env.out.str() == correct);
+		}
 	}
 }

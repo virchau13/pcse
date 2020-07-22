@@ -1,2 +1,1 @@
-DECLARE x: ARRAY[0:0] OF INTEGER
-x[0] <- 1
+OUTPUT 2.1 - 0.2

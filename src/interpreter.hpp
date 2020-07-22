@@ -55,29 +55,42 @@ const std::optional<Env::Value> callFunc(Env& env, int64_t id, const std::vector
 	if(args.size() != func->params.size()){
 		throw RuntimeError("Invalid number of parameters for function");
 	}
+
 	std::vector<EType> old_types(args.size());
 	std::vector<Env::Value> old_vals(args.size());
 	std::vector<int32_t> old_levels(args.size());
-	for(size_t i = 0; i < func->params.size(); i++){
-		const auto& p = func->params[i];
-		if(p.byref){
-			throw RuntimeError("BYREF is not supported");
+	{
+		// maximum 64 arguments
+		Env::Value argvals[64];
+		EType argtypes[64];
+		for(size_t i = 0; i < args.size(); i++){
+			argtypes[i] = args[i].type(env);
+			expectTypeEqual(argtypes[i], func->params[i].type.to_etype(env));
+			argvals[i] = args[i].eval(env);
 		}
-		// Keep track of the old variables.
-		old_types[i] = env.getType(p.ident);
-		if(old_types[i] != Primitive::INVALID){
-			old_vals[i] = env.getValue(p.ident);
-			old_levels[i] = env.getLevel(p.ident);
+			// Keep track of the old variables.
+		for(size_t i = 0; i < args.size(); i++){
+			const auto& p = func->params[i];
+			if(p.byref){
+				throw RuntimeError("BYREF is not supported");
+			}
+			old_types[i] = env.getType(p.ident);
+			if(old_types[i] != Primitive::INVALID){
+				old_vals[i] = env.getValue(p.ident);
+				old_levels[i] = env.getLevel(p.ident);
+			}
 		}
-		// Put in the new variable.
-		env.deleteVar(p.ident);
-		env.setType(p.ident, p.type.to_etype(env));
-		expectTypeEqual(args[i].type(env), env.getType(p.ident));
-		env.value(p.ident) = args[i].eval(env);
-		env.setLevel(p.ident, env.call_number + 1);
-		initVar(env, p.ident, env.getType(p.ident));
+		// Put in the new ones.
+		env.call_number++;
+		for(size_t i = 0; i < args.size(); i++){
+			int64_t ident = func->params[i].ident;
+			env.deleteVar(ident);
+			env.setType(ident, argtypes[i]);
+			env.setLevel(ident, env.call_number);
+			env.value(ident) = argvals[i];
+			initVar(env, ident, argtypes[i]);
+		}
 	}
-	env.call_number++;
 	const Expr *ret = func->blocks[0].eval(env);
 	std::optional<Env::Value> retval = std::nullopt;
 	if(ret == nullptr && func->types.size() != 0){ // should have returned, but didn't
@@ -434,8 +447,13 @@ anylevelstmt:
 				if(type == Primitive::INVALID){
 					throw RuntimeError("Undefined variable");
 				}
-				expectTypeEqual(type, exprs[0].type(env));
-				lvalues[0].ref(env) = exprs[0].eval(env);
+				const EType exprtype = exprs[0].type(env);
+				if(type == Primitive::REAL && exprtype == Primitive::INTEGER){
+					lvalues[0].ref(env).frac = Fraction<>(exprs[0].eval(env).i64);
+				} else {
+					expectTypeEqual(exprtype, type);
+					lvalues[0].ref(env) = exprs[0].eval(env);
+				}
 			}
 			break;
 		CASE(INPUT):
@@ -590,7 +608,7 @@ endcase:
 			do {
 				const Expr *ret = blocks[0].eval(env);
 				if(ret != nullptr) return ret;
-			} while(exprs[0].eval(env).b);
+			} while(!exprs[0].eval(env).b);
 			break;
 		CASE(WHILE):
 			expectTypeEqual(exprs[0].type(env), Primitive::BOOLEAN);

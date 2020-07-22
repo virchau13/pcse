@@ -32,6 +32,7 @@ public:
 	size_t curr = 0;
 	inline Parser(const std::vector<Token> tokens_) : tokens(tokens_) { parse(); }
 	inline Parser(const std::vector<Token>&& tokens_) : tokens(std::move(tokens_)) { parse(); }
+	inline ~Parser();
 	inline bool done() const noexcept {
 		return curr >= tokens.size();
 	}
@@ -91,7 +92,7 @@ public:
 
 // grammar.ebnf describes the idealised syntax.
 
-// Expr, Type, Param, Primary {{{
+// Expr, Type, Param, Primary, LValue {{{
 
 template<uint16_t Level>
 class BinExpr;
@@ -104,6 +105,16 @@ public:
 	int64_t id;
 	std::vector<Expr> *indexes = nullptr;
 	LValue(Parser& p, int64_t id = 0);
+	/* copy */ LValue(LValue& l) = delete;
+	/* move */ LValue(LValue&& l) noexcept : id(l.id), indexes(l.indexes) {
+		l.indexes = nullptr;
+	}
+	LValue& operator=(LValue&& l) noexcept {
+		id = l.id;
+		indexes = l.indexes;
+		l.indexes = nullptr;
+		return *this;
+	}
 	Env::Value& ref(Env& env) const;
 	Env::Value eval(Env& env) const;
 	inline EType type(const Env& env) const {
@@ -113,6 +124,10 @@ public:
 		 * we can just return the element type.
 		 */
 		return env.getType(id).primtype;
+	}
+	~LValue() {
+		/* Deleting a nullptr is safe. */
+		delete indexes;
 	}
 	// Friend operator<< {{{
 	friend std::ostream& operator<<(std::ostream& os, const LValue& lv){
@@ -129,7 +144,7 @@ public:
 
 class Primary {
 public:
-	const struct All {
+	struct All {
 		// Valid values: 
 		// STR_C, INT_C, REAL_C, CHAR_C, IDENTIFIER [lvalue], 
 		// TRUE, FALSE, CALL [function call], INVALID [(expr)]
@@ -142,12 +157,19 @@ public:
 			std::vector<Expr> *args;
 			inline Main(Token::Literal lt_) : lt(lt_) {}
 			inline Main(int i): lt(i) {}
+			Main() {}
+			~Main() {}
 		} main;
 	} all;
-	All::Main main() const noexcept { return all.main; }
+	const All::Main& main() const noexcept { return all.main; }
 	TokenType primtype() const noexcept { return all.primtype; }
-	static All make_all(Parser& p);
-	Primary(Parser& p) : all(make_all(p)) {}
+	Primary(Parser& p);
+	/* copy */ Primary(Primary& pri) = delete;
+	/* move */ Primary(Primary&& pri) noexcept {
+		std::memcpy(&all, &pri.all, sizeof(All));
+		pri.all.main.expr = nullptr;
+	}
+	~Primary();
 	Env::Value eval(Env& env) const;
 	EType type(Env& env) const;
 	// friend operator<< {{{
@@ -206,7 +228,7 @@ static const std::vector<TokenType> unary_ops = {
 class UnaryExpr {
 public:
 	const TokenType op;
-	const union Main {
+	union Main {
 		Primary *primary;
 		UnaryExpr *unexpr;
 		Main(Primary *p) : primary(p) {}
@@ -228,6 +250,17 @@ public:
 		}
 	}
 	UnaryExpr(Parser& p) : op(make_op(p)), main(make_main(op, p)) {}
+	/* copy */ UnaryExpr(UnaryExpr& un) = delete;
+	/* move */ UnaryExpr(UnaryExpr&& un) noexcept : op(un.op), main(un.main) {
+		un.main.primary = nullptr;
+	}
+	~UnaryExpr() {
+		if(op == TokenType::INVALID){
+			delete main.primary;
+		} else {
+			delete main.unexpr;
+		}
+	}
 	Env::Value eval(Env& env) const;
 	inline EType type(Env& env) const {
 		return (op == TokenType::INVALID ? main.primary->type(env) : main.unexpr->type(env));
@@ -282,6 +315,13 @@ public:
 	}
 	
 	BinExpr(Parser& p) : left(p), opt(make_opt(p)) {}
+	/* copy */ BinExpr(BinExpr& be) = delete;
+	/* move */ BinExpr(BinExpr&& be) noexcept : left(std::move(be.left)), opt(be.opt) {
+		be.opt = { TokenType::INVALID, nullptr };
+	}
+	~BinExpr() {
+		if(opt.op != TokenType::INVALID) delete opt.right;
+	}
 	Env::Value eval(Env& env) const;
 	EType type(Env& env) const;
 	// friend operator<< {{{
@@ -322,44 +362,60 @@ const std::vector<TokenType> const_types = {
     TokenType::DATE_C
 };
 
-Primary::All Primary::make_all(Parser& p){
-	All res = {TokenType::INVALID, 0, 0};
+Primary::Primary(Parser& p) {
 	const Token& n = p.next();
 	if(isAnyOf(n.type, const_types)){
 		/* literal */
-		res.primtype = n.type;
-		res.main = n.literal;
-		return res;
+		all.primtype = n.type;
+		all.main.lt = n.literal;
+		return;
 	} else if(n.type == TokenType::IDENTIFIER){
 		if(p.match_type(TokenType::LEFT_PAREN)){
 			/* function call */
-			res.primtype = TokenType::CALL; // lmao
-			res.func_id = n.literal.i64; /* func_id is used to store the function's identifier */
-			res.main.args = new std::vector<Expr>();
+			all.primtype = TokenType::CALL; // lmao
+			all.func_id = n.literal.i64; /* func_id is used to store the function's identifier */
+			all.main.args = new std::vector<Expr>();
 			if(p.match_type(TokenType::RIGHT_PAREN)){
-				return res;
+				return;
 			}
 			for(;;){
-				res.main.args->emplace_back(p);
+				all.main.args->emplace_back(p);
 				if(p.match_type(TokenType::RIGHT_PAREN)){
-					return res;
+					return;
 				}
 				p.expect_type(TokenType::COMMA); /* another expr is coming */
 			}
 		} else {
 			/* normal lvalue */
-			res.primtype = TokenType::IDENTIFIER;
+			all.primtype = TokenType::IDENTIFIER;
 			// tell LValue we've already consumed an identifier
 			// (it checks if id == 0, and since id > 0 for any valid id, it's fine)
-			res.main.lvalue = LValue(p, n.literal.i64);
-			return res;
+			LValue lv(p, n.literal.i64);
+			all.main.lvalue = std::move(lv);
+			return;
 		}
 	} else if(n.type == TokenType::LEFT_PAREN){
-		res.main.expr = new Expr(p);
+		/* all.primtype is set to INVALID by default */
+		all.main.expr = new Expr(p);
 		p.expect_type(TokenType::RIGHT_PAREN);
-		return res;
+		return;
 	} else {
 		p.error("Invalid primary");
+	}
+}
+
+Primary::~Primary() {
+	/* If it's a const type we don't have to do anything */
+	if(!isAnyOf(all.primtype, const_types)){
+		if(all.primtype == TokenType::CALL){
+			// Deallocate the argument array.
+			delete all.main.args;
+		} else if(all.primtype == TokenType::IDENTIFIER){
+			// delete the lvalue
+			all.main.lvalue.~LValue();
+		} else { /* TokenType::INVALID */
+			delete all.main.expr;
+		}
 	}
 }
 
@@ -404,6 +460,11 @@ public:
 		}
 	}
 	Type(Parser& p): all(make_all(p)) {}
+	~Type() {
+		if(all.is_array) {
+			delete all.name.rec;
+		}
+	}
 	EType to_etype(Env& env, bool is_top = true) const;
 	// friend operator<< {{{
 	friend std::ostream& operator<<(std::ostream& os, const Type& type){
@@ -561,10 +622,16 @@ public:
 	std::vector<Param> params;
 	std::vector<Block> blocks;
 	void paramlist(Parser& p){
+		size_t param_count = 0;
 		for(;;){
 			params.emplace_back(p);
+			param_count++;
 			if(!p.match_type(TokenType::COMMA)){
 				break;
+			}
+			if(param_count == 64){
+				// next one will be 65
+				p.error("Cannot declare a function with more than 64 arguments");
 			}
 			/* start parsing next param on loop repeat */
 		}
@@ -744,16 +811,22 @@ public:
 
 // }}}
 
-// Parser::{parse, run} {{{
+// Parser::{parse, run, ~Parser} {{{
 
 void Parser::parse(){
 	output = new Program(*this);
 }
 
+ 
 void Parser::run(Env& env){
 	output->eval(env);
+}
+
+inline Parser::~Parser() {
+	delete output;
 }
 
 // }}}
 
 #endif /* PARSER_HPP */
+

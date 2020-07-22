@@ -22,5 +22,3 @@ TEST_CASE("isAlpha()", "[utils]"){
 		REQUIRE(isAlpha(c) == isal);
 	}
 }
-
-

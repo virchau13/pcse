@@ -24,7 +24,7 @@ enum class Primitive {
 	INVALID
 };
 
-std::vector<std::string_view> primitive_to_str = {
+std::vector<std::string> primitive_to_str = {
 	"INTEGER", "STRING", "CHAR", "REAL", "DATE", "BOOLEAN", "INVALID"
 };
 
@@ -172,7 +172,7 @@ public:
 		var_types[var] = type;
 	}
 	inline void deleteVar(int64_t var) noexcept {
-		var_types[var].primtype = Primitive::INVALID;
+		var_types[var] = Primitive::INVALID;
 	}
 	inline void expectType(int64_t var, const EType& type) const {
 		if(var_types[var] != type){
@@ -183,15 +183,19 @@ public:
 	inline void defFunc(int64_t id, EFunc func) noexcept {
 		functable[id] = func;
 	}
-	inline EFunc getFunc(int64_t id) const noexcept {
-		return functable.at(id);
+	inline EFunc getFunc(int64_t id) const {
+		auto it = functable.find(id);
+		if(it == functable.end()) {
+			throw RuntimeError("Function does not exist");
+		}
+		return it->second;
 	}
-	Env(int64_t identifier_count) : var_types(identifier_count+1), var_vals(identifier_count+1),
+	Env(int64_t identifier_count) : var_types(identifier_count+1, Primitive::INVALID), var_vals(identifier_count+1),
 	var_call_level(identifier_count+1, 0) {}
 
 #ifdef TESTS
 public:
-	std::stringstream out;
+	std::ostringstream out;
 #else 
 	std::ostream& out = std::cout;
 #endif

@@ -24,3 +24,5 @@ _deps
 .idea/
 .clangd/
 .vscode/
+
+vgcore.*

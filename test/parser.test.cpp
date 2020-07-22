@@ -1,8 +1,15 @@
 #include <catch2/catch.hpp>
+#define TESTS
 #include "../src/parser.hpp"
 #include <filesystem>
 
 namespace fs = std::filesystem;
+
+struct Test {
+	const Lexer lex;
+	const Parser p;
+	Test(const std::string_view sv): lex(sv), p(lex.output) {}
+};
 
 Program *test_string(const std::string_view sv){
 	Lexer tmp(sv);
@@ -13,9 +20,8 @@ Program *test_string(const std::string_view sv){
 TEST_CASE("Parsing", "[parser]"){
 
 	{
-		Program &p = *test_string(
-			"FOR i <- 1 TO 10 OUTPUT i NEXT"
-		);
+		Test test("FOR i <- 1 TO 10 OUTPUT i NEXT");
+		Program &p = *test.p.output;
 		REQUIRE(p.stmts.size() == 1);
 		REQUIRE(p.stmts[0].form == StmtForm::FOR);
 		REQUIRE(p.stmts[0].blocks.size() == 1);
@@ -27,9 +33,8 @@ TEST_CASE("Parsing", "[parser]"){
 	}
 
 	{ 
-		Program& p = *test_string(
-			"OUTPUT 2 + 3 * 4\n"
-		);
+		Test test("OUTPUT 2 + 3 * 4");
+		Program& p = *test.p.output;
 		// std::cout << p << '\n';
 		REQUIRE(p.stmts.size() == 1);
 		REQUIRE(p.stmts[0].exprs.size() == 1);

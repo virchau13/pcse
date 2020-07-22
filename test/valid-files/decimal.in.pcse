@@ -1,0 +1,11 @@
+DECLARE x: REAL
+DECLARE y: REAL
+
+x <- 2 // should work
+x <- 2.1
+y <- 0.2
+
+OUTPUT x + y = 2.3 // floating point error would make this 2.300000004
+OUTPUT x - y = 1.9
+OUTPUT x * y = 0.42
+OUTPUT x / y = 10.5

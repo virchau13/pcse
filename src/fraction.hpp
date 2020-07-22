@@ -124,14 +124,7 @@ public:
 	}
 
 	inline Fraction& operator/=(const Fraction<num_t> other) noexcept {
-		// operator* but with inverse.
-		num_t g1 = std::gcd(bot, other.bot);
-		num_t g2 = std::gcd(other.top, top);
-
-		top = (bot / g1) * (other.top / g2);
-		bot = (top / g2) * (other.bot / g1);
-
-		return *this;
+		return operator*=(other.inverse());
 	}
 	template<typename Int>
 	typename std::enable_if_t<std::numeric_limits<Int>::is_integer, Fraction&> operator/=(const Int other) noexcept {
@@ -167,14 +160,9 @@ public:
 		return *this;
 	}
 
-	Fraction& operator-=(const Fraction<num_t> other) noexcept {
+	inline Fraction& operator-=(const Fraction<num_t> other) noexcept {
 		// operator+= but with -other.top
-		num_t x = std::gcd(bot, other.bot);
-		top = top * (other.bot / x) - other.top * bot;
-		x = std::gcd(top, x);
-		top /= x;
-		bot *= other.bot / x;
-		return *this;
+		return operator+=(-other);
 	}
 
 	template<typename Int>

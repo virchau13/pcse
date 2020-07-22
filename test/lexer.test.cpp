@@ -1,4 +1,5 @@
 #include <catch2/catch.hpp>
+#define TESTS
 #include "../src/lexer.hpp"
 #include <filesystem>
 
