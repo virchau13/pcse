@@ -248,8 +248,8 @@ public:
 	std::vector<Token> output;
 	std::vector<size_t> line_loc;
 	int64_t identifier_count = 0;
-protected:
 	std::map<std::string_view, int64_t> id_num;
+protected:
 	size_t line = 1;
 	size_t curr = 0;
 

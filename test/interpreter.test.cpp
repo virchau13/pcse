@@ -36,7 +36,7 @@ TEST_CASE("INTERPRETING", "[interpreter]"){
 		{
 			Lexer lex(contents);
 			Parser parser(lex.output);
-			Env env(lex.identifier_count);
+			Env env(lex.identifier_count, lex.id_num);
 			parser.run(env);
 			std::string outname = file.path().c_str();
 			// ".in.pcse" => ".out"
@@ -65,7 +65,7 @@ TEST_CASE("INTERPRETING", "[interpreter]"){
 			std::string outname = file.path().c_str();
 			// ".in.pcse" => ".out"
 			{
-				std::string out = ".out";
+				std::string out = ".err";
 				int len = strlen(".in.pcse") - out.size();
 				while(len--){
 					outname.pop_back();
@@ -76,11 +76,11 @@ TEST_CASE("INTERPRETING", "[interpreter]"){
 			}
 			const std::string correct = readFile(outname);
 			std::string errmsg = "";
-#define CATCH(err) catch(err& e){ errmsg += #err; errmsg += ": "; errmsg += e.what(); }
+#define CATCH(err) catch(err& e){ errmsg += #err; errmsg += ": "; errmsg += e.what(); errmsg += '\n'; }
 			try {
 				Lexer lex(contents);
 				Parser parser(lex.output);
-				Env env(lex.identifier_count);
+				Env env(lex.identifier_count, lex.id_num);
 				parser.run(env);
 			} CATCH(LexError) CATCH(ParseError) CATCH(TypeError) CATCH(RuntimeError);
 			REQUIRE(errmsg == correct);

@@ -40,6 +40,6 @@ Documentation can be found in `docs/`, and examples can be found in `examples/`.
 ## What is there left to do?
 - [x] lexer
 - [x] parser
-- [ ] interpreter
+- [x] interpreter
 - [ ] CLI
 - [ ] VSCode extension

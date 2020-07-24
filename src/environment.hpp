@@ -8,127 +8,11 @@
 #include <memory>
 #include <sstream>
 
-#include "fraction.hpp"
-#include "date.hpp"
+#include "value.hpp"
+#include "globals.hpp"
 
 struct RuntimeError : public std::runtime_error {
 	using std::runtime_error::runtime_error;
-};
-
-enum class Primitive {
-	INTEGER,
-	STRING,
-	CHAR,
-	REAL,
-	DATE,
-	BOOLEAN,
-	INVALID
-};
-
-const std::vector<std::string> primitive_to_str = {
-	"INTEGER", "STRING", "CHAR", "REAL", "DATE", "BOOLEAN", "INVALID"
-};
-
-inline std::string_view primitiveToStr(const Primitive p){
-	return primitive_to_str[static_cast<int>(p)];
-}
-
-struct EType {
-	bool is_array;
-	std::vector<std::pair<int64_t,int64_t>> bounds; /* array [start, end], where length is level of nesting */
-	Primitive primtype;
-	EType() : primtype(Primitive::INVALID) {}
-	EType(Primitive primtype_):  is_array(false), primtype(primtype_) {}
-	EType(bool is_arr, std::vector<std::pair<int64_t,int64_t>> bounds_, Primitive primtype_):
-		is_array(is_arr), bounds(bounds_), primtype(primtype_) {}
-	inline bool is_primitive() const noexcept { return is_array == false; }
-	inline bool operator==(const EType& et) const noexcept {
-		bool res = 
-			primtype == et.primtype && 
-			is_array == et.is_array &&
-			bounds.size() == et.bounds.size();
-		if(!res) return false;
-		// The bounds check is more complicated than it seems.
-		// The pseudocode guide _explicitly says_ that 
-		/*
-		 * DECLARE arr: ARRAY[0:1] OF INTEGER
-		 * DECLARE bar: ARRAY[1:2] OF INTEGER
-		 * bar <- arr
-		 */
-		// should compile, since they have the same size and default type.
-		// So that's what we need to check.
-		for(size_t i = 0; i < bounds.size(); i++){
-			if(et.bounds[i].second - et.bounds[i].first
-				!= bounds[i].second - bounds[i].first){
-				return false;
-			}
-		}
-		return true;
-	}
-	inline bool operator!=(const EType& et) const noexcept {
-		return !operator==(et);
-	}
-	inline std::string to_str() const noexcept {
-		std::string res;
-		if(is_array){
-			for(const auto& b : bounds){
-				res += "ARRAY[";
-				res += std::to_string(b.first);
-				res += ':';
-				res += std::to_string(b.second);
-				res += "] OF ";
-			}
-		}
-		res += primitiveToStr(primtype);
-		return res;
-	}
-	// Friend operator<< {{{
-	inline friend std::ostream& operator<<(std::ostream& os, const EType et){
-		os << et.to_str();
-		return os;
-	}
-	// }}}
-};
-
-inline bool operator==(const Primitive prim, const EType& e) noexcept {
-	return e == prim;
-}
-
-union EValue {
-	std::string_view str;
-	int64_t i64;
-	Fraction<> frac;
-	char c;
-	bool b;
-	Date date;
-	std::vector<EValue> *vals;
-	inline EValue(){}
-	inline EValue(const std::string_view str_): str(str_) {}
-	inline EValue(const int64_t i64_): i64(i64_) {}
-	inline EValue(const Fraction<> frac_): frac(frac_) {}
-	inline EValue(const char c_): c(c_) {}
-	inline EValue(const bool b_): b(b_) {}
-	inline EValue(const Date date_): date(date_) {}
-	inline EValue(std::vector<EValue> * const val_): vals(val_) {}
-};
-
-
-// Function
-struct EFunc {
-	// max 64 args
-	const uint_least8_t arity;
-	const std::unique_ptr<EType[]> types;
-	const std::unique_ptr<int64_t[]> ids;
-	EType ret_type = Primitive::INVALID;
-	const enum class What {
-		RUNTIME,
-		BUILTIN
-	} what;
-	void *func_loc = nullptr;
-	EFunc(uint_least8_t arity_, What what_):
-		arity(arity_), types(new EType[arity]), ids(new int64_t[arity]), what(what_) {}
-	EFunc(): arity(0), what(What::RUNTIME) {}
-	EFunc(EFunc& e) = delete;
 };
 
 
@@ -273,8 +157,16 @@ public:
 		allocVar(id, type);
 	}
 
-	Env(int64_t identifier_count) : var_types(identifier_count+1, Primitive::INVALID), var_vals(identifier_count+1),
-	var_call_level(identifier_count+1, 0) {}
+	Env(int64_t identifier_count, std::map<std::string_view, int64_t>& id_map) : var_types(identifier_count+1, Primitive::INVALID), var_vals(identifier_count+1),
+	var_call_level(identifier_count+1, 0) {
+		// check for inbuilt functions
+		for(const auto& func : builtin::global_funcs){
+			auto it = id_map.find(func.first);
+			if(it != id_map.end()){
+				functable.insert(std::make_pair(it->second, func.second));
+			}
+		}
+	}
 
 #ifdef TESTS
 public:

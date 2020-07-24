@@ -1,0 +1,3 @@
+DECLARE x: REAL
+x <- 0.02
+OUTPUT INT(x) 

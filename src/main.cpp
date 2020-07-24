@@ -74,7 +74,7 @@ fail:
 		if(print_tree){
 			std::cerr << *parser.output << '\n';
 		}
-		Env env(lexer.identifier_count);
+		Env env(lexer.identifier_count, lexer.id_num);
 		parser.run(env);
 	} CATCH(LexError) CATCH(ParseError) CATCH(TypeError) CATCH(RuntimeError);
 
