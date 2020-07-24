@@ -1,0 +1,8 @@
+FUNCTION x(y: INTEGER) RETURNS INTEGER
+	// even if the variable has a different scope, it should still be valid
+	FOR i <- 1 TO 1
+		RETURN y + i
+	NEXT
+ENDFUNCTION
+
+OUTPUT x(3)

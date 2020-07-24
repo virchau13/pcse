@@ -1,0 +1,10 @@
+FUNCTION sum(x: ARRAY[0:1] OF INTEGER) RETURNS INTEGER
+	x[0] <- x[0] + x[1]
+	RETURN x[0]
+ENDFUNCTION
+
+DECLARE arr: ARRAY[0:1] OF INTEGER
+arr[0] <- 10
+arr[1] <- 11
+OUTPUT sum(arr)
+OUTPUT arr[0] // should not change

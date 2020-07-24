@@ -1,0 +1,7 @@
+DECLARE arr: ARRAY[0:1] OF INTEGER
+DECLARE bar: ARRAY[1:2] OF INTEGER
+arr[0] <- 1
+arr[1] <- 2
+bar <- arr
+OUTPUT bar[1]
+OUTPUT bar[2]

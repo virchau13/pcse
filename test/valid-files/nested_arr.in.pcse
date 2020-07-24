@@ -1,0 +1,17 @@
+DECLARE arr: ARRAY[0:1] OF ARRAY[0:1] OF INTEGER
+// assignment
+FOR i <- 0 TO 1
+	FOR j <- 0 TO 1
+		arr[i][j] <- 1
+	NEXT
+NEXT
+arr[0][1] <- 2
+// copy
+// (note the array size differences!)
+DECLARE bar: ARRAY[-1:0] OF ARRAY[1:2] OF INTEGER
+bar <- arr
+FOR i <- -1 TO 0
+	FOR j <- 1 TO 2
+		OUTPUT bar[i][j]
+	NEXT
+NEXT

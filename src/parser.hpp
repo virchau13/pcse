@@ -120,15 +120,18 @@ public:
 		l.indexes = nullptr;
 		return *this;
 	}
-	Env::Value& ref(Env& env) const;
-	Env::Value eval(Env& env) const;
+	EValue& ref(Env& env) const;
+	EValue eval(Env& env) const;
 	inline EType type(const Env& env) const {
-		/* Since arrays, no matter how many dimensions they have,
-		 * can only have one type of element,
-		 * we don't have to process everything:
-		 * we can just return the element type.
-		 */
-		return env.getType(id).primtype;
+		const EType& type = env.getType(id);
+		if(indexes == nullptr) return type;
+		// How many indexes deep are we?
+		size_t depth = indexes->size();
+		std::vector<std::pair<int64_t,int64_t>> new_bounds(type.bounds.size() - depth);
+		for(size_t i = 0; i < new_bounds.size(); i++){
+			new_bounds[i] = type.bounds[i + depth];
+		}
+		return EType(/* is an array if new_bounds isn't empty */ new_bounds.size(), new_bounds, type.primtype);
 	}
 	~LValue() {
 		/* Deleting a nullptr is safe. */
@@ -175,7 +178,7 @@ public:
 		pri.all.main.expr = nullptr;
 	}
 	~Primary();
-	Env::Value eval(Env& env) const;
+	EValue eval(Env& env) const;
 	EType type(Env& env) const;
 	// friend operator<< {{{
 	/* make easier to debug */
@@ -266,7 +269,7 @@ public:
 			delete main.unexpr;
 		}
 	}
-	Env::Value eval(Env& env) const;
+	EValue eval(Env& env) const;
 	inline EType type(Env& env) const {
 		return (op == TokenType::INVALID ? main.primary->type(env) : main.unexpr->type(env));
 	}
@@ -327,7 +330,7 @@ public:
 	~BinExpr() {
 		if(opt.op != TokenType::INVALID) delete opt.right;
 	}
-	Env::Value eval(Env& env) const;
+	EValue eval(Env& env) const;
 	EType type(Env& env) const;
 	// friend operator<< {{{
 	friend std::ostream& operator<<(std::ostream& os, const BinExpr<Level>& b) noexcept {
@@ -757,6 +760,10 @@ public:
 					p.expect_type(TokenType::RIGHT_PAREN);
 				}
 				blocks.emplace_back(p);
+				if(p.match_type(TokenType::RETURN)){
+					// it's worth checking if they tried to RETURN in a procedure
+					p.error("Cannot RETURN in a procedure");
+				}
 				p.expect_type(TokenType::ENDPROCEDURE);
 				break;
 			CASE(FUNCTION)

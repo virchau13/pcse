@@ -1,0 +1,6 @@
+CONSTANT x = 3
+OUTPUT x
+// scoped constant use
+IF TRUE THEN
+	OUTPUT x * 4
+ENDIF

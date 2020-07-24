@@ -1,1 +1,2 @@
-OUTPUT 2.1 - 0.2
+DECLARE arr: ARRAY[0:1] OF ARRAY[0:1] OF INTEGER
+arr <- arr * 3

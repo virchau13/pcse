@@ -18,98 +18,82 @@ void expectTypeEqual(const EType& t1, const EType& t2){
 	}
 }
 
-// callFunc, initVar {{{
+// defFunc, callFunc {{{
 
-void initVar(Env::Value *val, const EType& etype);
-
-void initArr(Env::Value *val, const Primitive primtype, const std::vector<std::pair<int64_t,int64_t>> bounds, size_t currpos){
-	if(currpos >= bounds.size()){
-		initVar(val, primtype);
-		return;
+void defFunc(Env& env, const Stmt<true> &stmt){
+	uint_least8_t arity = stmt.params.size();
+	env.functable.try_emplace(stmt.ids[0], arity, EFunc::What::RUNTIME);
+	EFunc& func = env.functable[stmt.ids[0]];
+	func.func_loc = (void *)&stmt.blocks[0];
+	for(size_t i = 0; i < stmt.params.size(); i++){
+		const Param &param = stmt.params[i];
+		if(param.byref) throw RuntimeError("BYREF is not supported");
+		func.ids[i] = param.ident;
+		func.types[i] = param.type.to_etype(env);
 	}
-	// e.g. ARRAY[10:0]
-	if(bounds[currpos].first > bounds[currpos].second){
-		throw TypeError("Cannot have array with larger start index than end");
+	if(stmt.types.size()) {
+		func.ret_type = stmt.types[0].to_etype(env);
 	}
-	val->vals = new std::vector<Env::Value>(bounds[currpos].second - bounds[currpos].first + 1);
-	for(Env::Value& v : *val->vals){
-		initArr(&v, primtype, bounds, currpos+1);
-	}
-}
-
-inline void initVar(Env::Value *val, const EType& etype){
-	// Only arrays need initialization (for now).
-	if(etype.is_array){
-		initArr(val, etype.primtype, etype.bounds, 0);
-	}
-}
-
-// Initializes a variable.
-inline void initVar(Env& env, int64_t id, const EType& type){
-	initVar(&env.value_unchecked(id), type);
 }
 
 // Calls a function.
-const std::optional<Env::Value> callFunc(Env& env, int64_t id, const std::vector<Expr>& args) {
-	const auto func = env.getFunc(id).def;
-	if(args.size() != func->params.size()){
+const std::optional<EValue> callFunc(Env& env, int64_t id, const std::vector<Expr>& args) {
+	const EFunc &func = env.functable[id];
+	if(args.size() != func.arity){
 		throw RuntimeError("Invalid number of parameters for function");
 	}
-
-	std::vector<EType> old_types(args.size());
-	std::vector<Env::Value> old_vals(args.size());
-	std::vector<int32_t> old_levels(args.size());
-	{
-		// maximum 64 arguments
-		Env::Value argvals[64];
-		EType argtypes[64];
-		for(size_t i = 0; i < args.size(); i++){
-			argtypes[i] = args[i].type(env);
-			expectTypeEqual(argtypes[i], func->params[i].type.to_etype(env));
-			argvals[i] = args[i].eval(env);
-		}
-			// Keep track of the old variables.
-		for(size_t i = 0; i < args.size(); i++){
-			const auto& p = func->params[i];
-			if(p.byref){
-				throw RuntimeError("BYREF is not supported");
-			}
-			old_types[i] = env.getType(p.ident);
-			if(old_types[i] != Primitive::INVALID){
-				old_vals[i] = env.getValue(p.ident);
-				old_levels[i] = env.getLevel(p.ident);
-			}
-		}
-		// Put in the new ones.
-		env.call_number++;
-		for(size_t i = 0; i < args.size(); i++){
-			int64_t ident = func->params[i].ident;
-			env.deleteVar(ident);
-			env.setType(ident, argtypes[i]);
-			env.setLevel(ident, env.call_number);
-			env.value(ident) = argvals[i];
-			initVar(env, ident, argtypes[i]);
-		}
-	}
-	const Expr *ret = func->blocks[0].eval(env);
-	std::optional<Env::Value> retval = std::nullopt;
-	if(ret == nullptr && func->types.size() != 0){ // should have returned, but didn't
-		throw TypeError("Function didn't return");
-	}
-	if(ret != nullptr){
-		// make sure the return type and the expr are equal
-		expectTypeEqual(ret->type(env), func->types[0].to_etype(env));
-		retval = ret->eval(env);
-	}
-	env.call_number--;
-	// Restore the old variables.
+	const std::unique_ptr<EValue[]> argvals(new EValue[func.arity]);
 	for(size_t i = 0; i < args.size(); i++){
-		int64_t varid = func->params[i].ident;
-		env.deleteVar(varid);
-		if(old_types[i] != Primitive::INVALID){
-			env.setType(varid, old_types[i]);
-			env.setLevel(varid, old_levels[i]);
-			env.value(varid) = old_vals[i];
+		expectTypeEqual(args[i].type(env), func.types[i]);
+		argvals[i] = args[i].eval(env);
+	}
+	std::optional<EValue> retval = std::nullopt;
+	if(func.what == EFunc::What::BUILTIN){ // builtin function
+		// Builtin functions take an array of `EValue`s and return an EValue
+		auto func_ptr = (EValue (*)(EValue *))func.func_loc;
+		EValue ret = func_ptr(argvals.get());
+		if(func.ret_type != Primitive::INVALID){
+			retval = ret;
+		}
+	} else { // runtime function
+		std::vector<EType> old_types(func.arity);
+		std::vector<EValue> old_vals(func.arity);
+		std::vector<int32_t> old_levels(func.arity);
+		{
+			// Keep track of the old variables.
+			for(size_t i = 0; i < args.size(); i++){
+				int64_t ident = func.ids[i];
+				old_types[i] = env.getType(ident);
+				if(old_types[i] != Primitive::INVALID){
+					old_vals[i] = env.getValue(ident);
+					old_levels[i] = env.getLevel(ident);
+				}
+			}
+			// Put in the new ones.
+			env.call_number++;
+			for(size_t i = 0; i < args.size(); i++){
+				int64_t ident = func.ids[i];
+				env.deleteVar(ident);
+				env.copyVar(argvals[i], func.types[i], env.call_number, ident);
+			}
+		}
+		const Expr *ret = ((Block *)func.func_loc)->eval(env);
+		if(ret == nullptr && func.ret_type != Primitive::INVALID){ // should have returned, but didn't
+			throw TypeError("Function didn't return");
+		}
+		if(ret != nullptr){
+			// make sure the return type and the expr are equal
+			expectTypeEqual(ret->type(env), func.ret_type);
+			retval = ret->eval(env);
+		}
+		env.call_number--;
+		// Restore the old variables.
+		for(size_t i = 0; i < func.arity; i++){
+			int64_t varid = func.ids[i];
+			env.deleteVar(varid);
+			if(old_types[i] != Primitive::INVALID){
+				env.initVar(varid, old_levels[i], old_types[i], old_vals[i]);
+			}
 		}
 	}
 	return retval;
@@ -117,9 +101,9 @@ const std::optional<Env::Value> callFunc(Env& env, int64_t id, const std::vector
 
 // }}}
 
-// Primary, (Unary|Bin)Expr (all the eval() functions which return `Env::Value`s) {{{
+// Primary, (Unary|Bin)Expr (all the eval() functions which return `EValue`s) {{{
 
-Env::Value Primary::eval(Env& env) const {
+EValue Primary::eval(Env& env) const {
 #define IF(x) if(all.primtype == TokenType:: x) 
 	IF(REAL_C) return main().lt.frac;
 	IF(INT_C) return main().lt.i64;
@@ -131,7 +115,7 @@ Env::Value Primary::eval(Env& env) const {
 	IF(IDENTIFIER) return all.main.lvalue.eval(env);
 	IF(CALL) {
 		// Typechecking should be done for us. :P
-		const std::optional<Env::Value> retval = callFunc(env, all.func_id, *all.main.args);
+		const std::optional<EValue> retval = callFunc(env, all.func_id, *all.main.args);
 		if(!retval) {
 			throw TypeError("Cannot call procedure without using CALL");
 		}
@@ -152,11 +136,11 @@ EType Primary::type(Env& env) const {
 	IF(STR_C) RET(STRING);
 	IF(IDENTIFIER) return all.main.lvalue.type(env);
 	IF(CALL){
-		const auto proc = env.getFunc(all.func_id).def;
-		if(proc->types.empty()){
+		const auto type = env.functable[all.func_id].ret_type;
+		if(type == Primitive::INVALID){
 			throw RuntimeError("Cannot call procedure and use it as a value");
 		}
-		return proc->types[0].to_etype(env);
+		return type;
 	}
 	IF(INVALID) return all.main.expr->type(env);
 #undef IF
@@ -164,10 +148,10 @@ EType Primary::type(Env& env) const {
 	throw RuntimeError("Invalid primary type. (INTERNAL ERROR)");
 }
 
-Env::Value LValue::eval(Env& env) const {
-	const auto& type = env.getType(id);
+EValue LValue::eval(Env& env) const {
+	const EType& type = env.getType(id);
 	if(indexes != nullptr){
-		const Env::Value *val = &env.getValue(id);
+		const EValue *val = &env.getValue(id);
 		if(indexes->size() != type.bounds.size()){
 			throw TypeError("[] used on int TODO finish this error");
 		}
@@ -185,10 +169,10 @@ Env::Value LValue::eval(Env& env) const {
 	}
 }
 
-Env::Value& LValue::ref(Env& env) const {
-	const auto& type = env.getType(id);
+EValue& LValue::ref(Env& env) const {
+	const EType& type = env.getType(id);
 	if(indexes != nullptr){
-		Env::Value *val = &env.value(id);
+		EValue *val = &env.value(id);
 		if(indexes->size() != type.bounds.size()){
 			throw TypeError("[] used on int TODO finish this error");
 		}
@@ -206,7 +190,7 @@ Env::Value& LValue::ref(Env& env) const {
 	}
 }
 
-Env::Value UnaryExpr::eval(Env& env) const {
+EValue UnaryExpr::eval(Env& env) const {
 	if(op == TokenType::INVALID){
 		return main.primary->eval(env);
 	} else if(op == TokenType::NOT){
@@ -264,11 +248,11 @@ EType BinExpr<Level>::type(Env& env) const {
 }
 
 template<uint16_t Level>
-Env::Value BinExpr<Level>::eval(Env& env) const {
-	Env::Value leftval = left.eval(env);
+EValue BinExpr<Level>::eval(Env& env) const {
+	EValue leftval = left.eval(env);
 	if(opt.op == TokenType::INVALID) return leftval;
 	const EType ltype = left.type(env);
-	Env::Value rightval = opt.right->eval(env);
+	EValue rightval = opt.right->eval(env);
 	if constexpr (Level == 0) {
 		// OR
 		leftval.b |= rightval.b;
@@ -300,6 +284,7 @@ Env::Value BinExpr<Level>::eval(Env& env) const {
 			OPAPPLY(rightval.frac, leftval.i64, opt.op);
 		}
 		if(ltype != rtype) throw TypeError("Cannot compare two different types");
+		if(ltype.is_array) throw TypeError("Cannot compare arrays");
 #define IFTYPE(x, l, r) if(ltype == Primitive:: x){ OPAPPLY(l, r, opt.op); }
 		IFTYPE(INTEGER, leftval.i64, rightval.i64);
 		IFTYPE(REAL, leftval.frac, rightval.frac);
@@ -419,18 +404,15 @@ const Expr *Stmt<TopLevel>::eval(Env& env) const {
 			CASE(DECLARE):
 				{
 					const EType type = types[0].to_etype(env);
-					env.setType(ids[0], type);
-					env.setLevel(ids[0], 0); /* global */
-					initVar(env, ids[0], type);
+					env.initVar(ids[0], env.GLOBAL_LEVEL, type, (int64_t)0);
 				}
 				break;
 			CASE(CONSTANT):
-				env.setType(ids[0], exprs[0].type(env));
-				env.value(ids[0]) = exprs[0].eval(env);
+				env.initVar(ids[0], env.GLOBAL_LEVEL, exprs[0].type(env), exprs[0].eval(env));
 				break;
 			CASE(PROCEDURE):
 			CASE(FUNCTION):
-				env.defFunc(ids[0], this);
+				defFunc(env, *this);
 				break;
 			default:
 				goto anylevelstmt;
@@ -452,7 +434,7 @@ anylevelstmt:
 					lvalues[0].ref(env).frac = Fraction<>(exprs[0].eval(env).i64);
 				} else {
 					expectTypeEqual(exprtype, type);
-					lvalues[0].ref(env) = exprs[0].eval(env);
+					env.copyValue(exprs[0].eval(env), type, &lvalues[0].ref(env));
 				}
 			}
 			break;
@@ -477,7 +459,7 @@ anylevelstmt:
 		CASE(CASE):
 			{
 				const EType type = lvalues[0].type(env);
-				const Env::Value& val = lvalues[0].eval(env);
+				const EValue& val = lvalues[0].eval(env);
 				if(type.is_array){
 					throw TypeError("Cannot use array in CASE OF");
 				}
@@ -498,7 +480,7 @@ anylevelstmt:
 						}
 					} else {
 						expectTypeEqual(exprtype, type);
-						Env::Value exprval = exprs[i].eval(env);
+						EValue exprval = exprs[i].eval(env);
 #define PRIM(t, n) case Primitive:: t: result = (exprval. n == val. n); break;
 						switch(type.primtype){
 							PRIM(DATE, date);
@@ -533,14 +515,14 @@ endcase:
 					expectTypeEqual(types[i], Primitive::REAL, Primitive::INTEGER);
 					is_frac |= (types[i] == Primitive::REAL);
 				}
-				Env::Value vals[3];
+				EValue vals[3];
 				for(size_t i = 0; i < exprs.size(); i++){
 					vals[i] = exprs[i].eval(env);
 				}
 				// Create the loop variable in scope and remove it later.
 				// Keep the old var for restoring later.
 				const EType old_type = env.getType(ids[0]);
-				Env::Value old_val;
+				EValue old_val;
 				int32_t old_call_frame;
 				if(old_type != Primitive::INVALID){
 					old_val = env.getValue(ids[0]);
