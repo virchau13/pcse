@@ -1,0 +1,11 @@
+DECLARE x: STRING
+x <- "lmao"
+DECLARE y: STRING
+y <- "xd"
+OUTPUT x = y
+DECLARE arr: ARRAY[0:1] OF STRING
+arr[0] <- x
+arr[1] <- y
+arr[0] <- "x"
+OUTPUT x // unchanged
+OUTPUT arr[0] = "x" // true
