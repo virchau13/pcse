@@ -269,6 +269,21 @@ public:
 		return os;
 	}
 	// }}}
+	
+	static Fraction<num_t> fromValidStr(const std::string_view& sv){
+		// parse fraction
+		int32_t top = 0, bot = 1;
+		int32_t mul = 1;
+		for(ssize_t i = sv.size()-1; i >= 0; i--){
+			if(sv[i] == '.'){
+				bot = mul;
+			} else {
+				top += (int32_t)(sv[i] - '0') * mul;
+				mul *= 10;
+			}
+		}
+		return Fraction<>(top, bot);
+	}
 };
 
 #endif /* FRACTION_HPP */

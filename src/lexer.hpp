@@ -357,20 +357,7 @@ protected:
 				error("Unexpected character after number");
 			}
 			// parse fraction
-			int32_t top, bot;
-			{
-				int32_t mul = 1;
-				top = 0;
-				for(ssize_t i = curr-1; i >= (ssize_t)start; i--){
-					if(source[i] == '.'){
-						bot = mul;
-					} else {
-						top += (int32_t)(source[i] - '0') * mul;
-						mul *= 10;
-					}
-				}
-			}
-			emit(TokenType::REAL_C, Fraction<>(top, bot), start);
+			emit(TokenType::REAL_C, Fraction<>::fromValidStr(source.substr(start, curr - start)), start);
 		} else {
 			// Integer
 			if(isAlpha(peek())){

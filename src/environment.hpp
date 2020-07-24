@@ -7,7 +7,9 @@
 #include <map>
 #include <memory>
 #include <sstream>
+#include <charconv>
 
+#include "utils.hpp"
 #include "value.hpp"
 #include "globals.hpp"
 
@@ -30,6 +32,7 @@ public:
 /* Space for variables and such. */
 class Env {
 private:
+	std::vector<std::string> strings; // so string_view doesn't leak.
 	std::vector<EType> var_types;
 	std::vector<EValue> var_vals;
 	/* This 'var_call_level' thing specifies what _call frame_
@@ -171,10 +174,102 @@ public:
 #ifdef TESTS
 public:
 	std::ostringstream out;
+	std::istringstream in;
 #else 
 	std::ostream& out = std::cout;
+	std::istream& in = std::cin;
 #endif
-
+	void input(EValue *val, const EType type){
+		if(type.is_array) throw TypeError("Cannot input array");
+		switch(type.primtype){
+#define CASE(x) case Primitive:: x
+			CASE(INTEGER):
+				{
+					std::string str;
+					std::getline(in, str);
+					if(!in) goto fail_i;
+					{
+						auto res = std::from_chars(str.data(), str.data() + str.size(), val->i64);
+						if(res.ptr != str.data() + str.size()) goto fail_i;
+					}
+					goto pass_i;
+fail_i:
+					throw RuntimeError("User did not input INTEGER correctly");
+pass_i:
+					;
+				}
+				break;
+			CASE(REAL):
+				{
+					std::string str;
+					std::getline(in, str);
+					bool dot = true;
+					for(size_t i = 0; i < str.size(); i++){
+						if(isDigit(str[i]) || (dot && str[i] == '.')){
+							dot &= (str[i] != '.');
+						} else {
+							throw RuntimeError("User did not input REAL correctly");
+						}
+					}
+					val->frac = Fraction<>::fromValidStr(str);
+				}
+				break;
+			CASE(BOOLEAN):
+				{
+					std::string str;
+					std::getline(in, str);
+					if(str == "TRUE") val->b = true;
+					else if(str == "FALSE") val->b = false;
+					else throw RuntimeError("User did not input BOOLEAN correctly");
+				}
+				break;	
+			CASE(CHAR):
+				{
+					std::string str;
+					std::getline(in, str);
+					val->c = str[0];
+					if(!in) throw RuntimeError("End of input reached");
+				}
+				break;
+			CASE(DATE):
+				{
+					uint16_t day, month;
+					uint16_t year;
+					std::string str;
+					std::getline(in, str);
+					if(!in) goto fail;
+					{
+						const char *curr = str.data(), *end = str.data() + str.size();
+						auto res = std::from_chars(curr, end, day);
+						if(res.ptr == end || *res.ptr != '/') goto fail;
+						curr = res.ptr+1;
+						res = std::from_chars(curr, end, month);
+						if(res.ptr == end || *res.ptr != '/') goto fail;
+						curr = res.ptr + 1;
+						res = std::from_chars(curr, end, year);
+						if(res.ptr != end) goto fail;
+					}
+					goto pass;
+fail:
+					throw RuntimeError("User did not input DATE correctly");
+pass:
+					val->date = Date(day, month, year);
+				}
+				break;
+			CASE(STRING):
+				{
+					std::string str;
+					std::getline(in, str);
+					if(!in) throw RuntimeError("End of input reached");
+					strings.push_back(str);
+					val->str = strings.back();
+				}
+				break;
+			default:
+				throw TypeError("Cannot input an undefined variable");
+#undef CASE
+		}
+	}
 	void output(const EValue val, const EType& type){
 #define IFTYPE(x) if(type == Primitive:: x)
 		IFTYPE(INTEGER) out << val.i64;
@@ -191,4 +286,3 @@ public:
 };
 
 #endif /* ENVIRONMENT_HPP */
-

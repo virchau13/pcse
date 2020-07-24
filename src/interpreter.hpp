@@ -439,8 +439,7 @@ anylevelstmt:
 			}
 			break;
 		CASE(INPUT):
-			throw RuntimeError("Inputting not implemented yet");
-			// TODO
+			env.input(&lvalues[0].ref(env), lvalues[0].type(env));
 			break;
 		CASE(OUTPUT):
 			for(size_t i = 0; i < exprs.size(); i++){

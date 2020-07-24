@@ -34,11 +34,32 @@ TEST_CASE("INTERPRETING", "[interpreter]"){
 		std::string contents = readFile(file.path().c_str());
 		/* Lexer::Lexer uses a std::string_view, so we have to destroy it _before_ contents */
 		{
+
 			Lexer lex(contents);
 			Parser parser(lex.output);
 			Env env(lex.identifier_count, lex.id_num);
+			std::string inpname = file.path().c_str();
+			// ".in.pcse" => ".in"
+			{
+				std::string out = ".in";
+				int len = strlen(".in.pcse") - out.size();
+				while(len--){
+					inpname.pop_back();
+				}
+				for(size_t i = 0; i < out.size(); i++){
+					inpname[i + inpname.size() - out.size()] = out[i];
+				}
+			}
+			try {
+				const std::string inp = readFile(inpname);
+				env.in = std::istringstream(inp);
+			} catch(std::runtime_error& e){
+				// no input
+			}
 			parser.run(env);
+
 			std::string outname = file.path().c_str();
+			
 			// ".in.pcse" => ".out"
 			{
 				std::string out = ".out";

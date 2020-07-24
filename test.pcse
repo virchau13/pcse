@@ -1,2 +1,19 @@
-DECLARE arr: ARRAY[0:1] OF ARRAY[0:1] OF INTEGER
-arr <- arr * 3
+INPUT cr
+INPUT c
+r <- 0
+IF cr = "THB" THEN
+    r <- c*26
+ELSE IF cr = "GBP" THEN
+    r <- c*0.47
+ELSE
+    r <- c*0.86
+ENDIF ENDIF
+IF 0.02*c > 5 THEN
+    OUTPUT r, " ", cr
+    OUTPUT "SGD to ", cr
+    OUTPUT 1.02*c, " SGD"
+ELSE
+    OUTPUT r, " ", cr
+    OUTPUT "SGD to ", cr
+    OUTPUT (c + 5), " SGD"
+ENDIF
