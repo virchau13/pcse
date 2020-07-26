@@ -51,20 +51,14 @@ fail:
 		exit(EXIT_FAILURE);
 	}
 
-	std::string source;
-	in.seekg(0, std::ios::end);
-	source.resize(in.tellg());
-	in.seekg(0, std::ios::beg);
-	in.read(&source[0], source.size());
-	in.close();
-
 #define CATCH(name) \
 	catch(name &e) { \
-		std::cout << #name << ": " << e.what() << '\n'; \
+		std::cerr << #name << ": " << e.what() << '\n'; \
+		return EXIT_FAILURE; \
 	}
 	
 	try {
-		Lexer lexer(source);
+		Lexer lexer(in);
 		if(print_tokens){
 			for(const auto& token : lexer.output){
 				std::cerr << token << '\n';
@@ -76,6 +70,10 @@ fail:
 		}
 		Env env(lexer.identifier_count, lexer.id_num);
 		parser.run(env);
+	} catch(std::istream::failure& e){ 
+		std::cerr << "File error: Failure to read file\n";
+		std::cerr << "istream::failure::what(): " << e.what() << '\n';
+		return EXIT_FAILURE;
 	} CATCH(LexError) CATCH(ParseError) CATCH(TypeError) CATCH(RuntimeError);
 
 	return EXIT_SUCCESS;

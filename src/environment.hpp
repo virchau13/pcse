@@ -32,7 +32,6 @@ public:
 /* Space for variables and such. */
 class Env {
 private:
-	std::vector<std::string> strings; // so string_view doesn't leak.
 	std::vector<EType> var_types;
 	std::vector<EValue> var_vals;
 	/* This 'var_call_level' thing specifies what _call frame_
@@ -179,7 +178,7 @@ public:
 	std::ostream& out = std::cout;
 	std::istream& in = std::cin;
 #endif
-	void input(EValue *val, const EType type){
+	void input(EValue &val, const EType type){
 		if(type.is_array) throw TypeError("Cannot input array");
 		switch(type.primtype){
 #define CASE(x) case Primitive:: x
@@ -189,7 +188,7 @@ public:
 					std::getline(in, str);
 					if(!in) goto fail_i;
 					{
-						auto res = std::from_chars(str.data(), str.data() + str.size(), val->i64);
+						auto res = std::from_chars(str.data(), str.data() + str.size(), val.i64);
 						if(res.ptr != str.data() + str.size()) goto fail_i;
 					}
 					goto pass_i;
@@ -211,15 +210,15 @@ pass_i:
 							throw RuntimeError("User did not input REAL correctly");
 						}
 					}
-					val->frac = Fraction<>::fromValidStr(str);
+					val.frac = Fraction<>::fromValidStr(str);
 				}
 				break;
 			CASE(BOOLEAN):
 				{
 					std::string str;
 					std::getline(in, str);
-					if(str == "TRUE") val->b = true;
-					else if(str == "FALSE") val->b = false;
+					if(str == "TRUE") val.b = true;
+					else if(str == "FALSE") val.b = false;
 					else throw RuntimeError("User did not input BOOLEAN correctly");
 				}
 				break;	
@@ -227,7 +226,7 @@ pass_i:
 				{
 					std::string str;
 					std::getline(in, str);
-					val->c = str[0];
+					val.c = str[0];
 					if(!in) throw RuntimeError("End of input reached");
 				}
 				break;
@@ -253,7 +252,7 @@ pass_i:
 fail:
 					throw RuntimeError("User did not input DATE correctly");
 pass:
-					val->date = Date(day, month, year);
+					val.date = Date(day, month, year);
 				}
 				break;
 			CASE(STRING):
@@ -261,8 +260,7 @@ pass:
 					std::string str;
 					std::getline(in, str);
 					if(!in) throw RuntimeError("End of input reached");
-					strings.push_back(str);
-					val->str = strings.back();
+					val.str = global::toStrView(str);
 				}
 				break;
 			default:

@@ -1,0 +1,12 @@
+DECLARE i: INTEGER
+i <- 0
+FOR i <- 1 TO 4
+	OUTPUT i
+NEXT
+OUTPUT i
+FOR i <- 1 TO 2
+	FOR i <- 3 TO 4
+		OUTPUT i
+	NEXT
+	OUTPUT i
+NEXT

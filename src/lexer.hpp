@@ -9,12 +9,14 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <sstream>
 
 #include <cstring>
 
 #include "fraction.hpp"
 #include "utils.hpp"
 #include "date.hpp"
+#include "globals.hpp"
 
 // Token list {{{
 
@@ -244,7 +246,7 @@ public:
 
 class Lexer {
 public:
-	std::string_view source;
+	std::istream& in;
 	std::vector<Token> output;
 	std::vector<size_t> line_loc;
 	int64_t identifier_count = 0;
@@ -272,10 +274,10 @@ protected:
 	uint_least8_t date_stage = 0;
 
 	// done()/peek()/next() like functions {{{
-	inline size_t getCol() const noexcept {
+	inline size_t getCol() const  {
 		return (line_loc.empty() ? curr : curr - line_loc.back() - 1);
 	}
-	size_t getCol(size_t pos) const noexcept {
+	size_t getCol(size_t pos) const  {
 		if(line_loc.empty()) return pos + 1;
 		// most common case
 		else if(pos >= line_loc.back()) return pos - line_loc.back();
@@ -291,36 +293,41 @@ protected:
 			}
 		}
 	}
-	inline void emit(TokenType type) noexcept {
+	inline void emit(TokenType type)  {
 		output.emplace_back(line, getCol(), type, 0);
 	}
-	inline void emit(TokenType type, Token::Literal lt) noexcept {
+	inline void emit(TokenType type, Token::Literal lt)  {
 		output.emplace_back(line, getCol(), type, lt);
 	}
-	inline void emit(TokenType type, Token::Literal lt, size_t startpos) noexcept {
+	inline void emit(TokenType type, Token::Literal lt, size_t startpos)  {
 		output.emplace_back(line, getCol(startpos), type, lt);
 	}
-	inline bool done() const noexcept {
-		return curr >= source.length();
+	inline bool done() const  {
+		return in.eof();
 	}
-	inline char peek() const noexcept {
-		return done() ? '\0' : source[curr];
+	inline char peek() const  {
+		return in.eof() ? '\0' : in.peek();
 	}
-	inline char next() noexcept {
-		char c = peek();
-		++curr;
+	inline char next()  {
+		char c;
+		in.get(c);
+		if(in.eof()){
+			c = '\0';
+		} else {
+			++curr;
+		}
 		return c;
 	}
-	inline bool match(const char c) noexcept {
+	inline bool match(const char c)  {
 		if(c == peek()){
 			next();
 			return true;
 		} else return false;
 	}
 	template<typename T>
-	inline void error(const T msg) const{
-		throw LexError(curr-1, line, getCol(), msg);
-	}
+		inline void error(const T msg) const{
+			throw LexError(curr-1, line, getCol(), msg);
+		}
 	inline void expect(char c){
 		if(c != next()){
 			std::string msg = "Expected ";
@@ -329,25 +336,28 @@ protected:
 		}
 	}
 	// }}}
-	
+
 	// newline, number, string, identifier {{{
-	inline void newline() noexcept {
+	inline void newline()  {
 		line_loc.push_back(curr - 1);
 		line++;
 	}
-	inline void number(){
+	inline void number(char c){
 		// Integer or Real
-		const size_t start = curr-1;
-		while(isDigit(peek())) next();
+		const size_t start = curr - 1;
+		std::string numstr;
+		numstr += c;
+		numstr.reserve(std::max(MAX_FRAC_NUM_STR.length(), MAX_INT_STR.length()));
+		while(isDigit(peek())) numstr.push_back(next());
 		if(peek() == '.'){
 			// Real
-			next();
+			numstr.push_back(next());
 			if(!isDigit(peek())){
 				error("Expected digit after decimal point");
 			}
-			next();
-			while(isDigit(peek())) next();
-			if(curr - start >= MAX_FRAC_NUM_STR.length()){
+			numstr.push_back(next());
+			while(isDigit(peek())) numstr.push_back(next());
+			if(numstr.size() >= MAX_FRAC_NUM_STR.length()){
 				error("Real constant too large");
 			}
 			if(isAlpha(peek())){
@@ -357,7 +367,7 @@ protected:
 				error("Unexpected character after number");
 			}
 			// parse fraction
-			emit(TokenType::REAL_C, Fraction<>::fromValidStr(source.substr(start, curr - start)), start);
+			emit(TokenType::REAL_C, Fraction<>::fromValidStr(numstr), start);
 		} else {
 			// Integer
 			if(isAlpha(peek())){
@@ -367,15 +377,15 @@ protected:
 			}
 			// check if is too big
 			// (stupid check so that math using it doesn't overflow easily)
-			if(curr - start >= MAX_INT_STR.length()){
+			if(numstr.size() >= MAX_INT_STR.length()){
 				error("Integer constant too large");
 			}
 			// parse integer
 			int64_t res = 0;
 			{
 				int64_t mul = 1;
-				for(ssize_t i = curr-1; i >= (ssize_t)start; i--){
-					res += (int64_t)(source[i] - '0') * mul;
+				for(ssize_t i = numstr.size()-1; i >= (ssize_t)0; i--){
+					res += (int64_t)(numstr[i] - '0') * mul;
 					mul *= 10;
 				}
 			}
@@ -384,26 +394,29 @@ protected:
 	}
 	inline void string(){
 		const size_t start = curr - 1;
+		std::string res;
 		while(!done() && peek() != '"'){
-			if(next() == '\n') newline();
+			res += next();
+			if(res.back() == '\n') newline();
 		}
 		// will throw if the string is incomplete
 		expect('"');
-		// remove first and last (`"str"` => `str`)
-		emit(TokenType::STR_C, source.substr(start+1, curr - start-2), start);
+		emit(TokenType::STR_C, global::toStrView(res), start);
 	}
-	inline void identifier(){
+	inline void identifier(char c){
 		const size_t start = curr-1;
-		while(isAlpha(peek()) || peek() == '_') next();
-		std::string_view id = source.substr(start, curr - start);
+		std::string id;
+		id += c;
+		while(isAlpha(peek()) || peek() == '_') id.push_back(next());
 		if(reservedWords.find(id) != reservedWords.end()){
 			emit(reservedWords.at(id), 0, start);
 		} else {
 			int64_t idn = identifier_count + 1;
-			if(id_num.find(id) != id_num.end()){
-				idn = id_num[id];
+			auto it = id_num.find(id);
+			if(it != id_num.end()){
+				idn = it->second;
 			} else {
-				id_num[id] = idn;
+				id_num.insert(it, { global::toStrView(id), idn });
 				identifier_count++;
 			}
 			emit(TokenType::IDENTIFIER, idn, start);
@@ -413,8 +426,9 @@ protected:
 
 	// lex {{{	
 	void lex(){
-		while(!done()){
-			char c = next();
+		char c;
+		while((c = next()) && !done()){
+			// TODO: use fstream not source string (otherwise windows exe dies)
 			switch(c){
 				case '(': emit(TokenType::LEFT_PAREN); break;
 				case ')': emit(TokenType::RIGHT_PAREN); break;
@@ -466,9 +480,9 @@ protected:
 					break;
 				default:
 					if(isDigit(c))
-						number();
+						number(c);
 					else if(isAlpha(c))
-						identifier();
+						identifier(c);
 					else {
 						std::string msg = "Stray ";
 						msg += c;
@@ -515,10 +529,11 @@ protected:
 	}
 	// }}}
 public:
-	inline Lexer(const std::string_view source_) : source(source_) { 
+	inline Lexer(std::istream& src): in(src) {
+		in.exceptions(std::istream::badbit);
 		lex();
 		// add an EOF token
-		emit(TokenType::INVALID, 0, source.size());
+		emit(TokenType::INVALID, 0, curr);
 	}
 };
 

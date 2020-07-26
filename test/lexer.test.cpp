@@ -7,18 +7,20 @@ namespace fs = std::filesystem;
 
 TEST_CASE("Lexing", "[lex]"){
 	{
-		Lexer lex(
+		std::istringstream inp(
 				" \n"
 				" \r\n"
 				" * // comments are ignored \t\r\n"
 				"\t\t\tnewlines\n"
 				"newline\n"
 				"2 3.0 4.999 5 ENDFUNCTION\n"
-				"\"str\"\n"
-				"newline\n"
+				"\"str\" 74\n"
+				"newline id_\n"
 				"<- < -\n"
-				"'#'"
+				"'#' \"STR\"\n"
+				"x y"
 				);
+		Lexer lex(inp);
 		std::vector<Token> expected = {
 			// Order: line, col, type, literal
 			{ 3, 2, TokenType::STAR, 0 },
@@ -37,25 +39,31 @@ TEST_CASE("Lexing", "[lex]"){
 			 */
 			{  6, 15, TokenType::ENDFUNCTION, 0 },
 			{  7, 1, TokenType::STR_C, "str" },
+			{  7, 7, TokenType::INT_C, 74 },
 			{  8, 1, TokenType::IDENTIFIER, 2 }, // Should be same identifier number as `newline`
+			{  8, 9, TokenType::IDENTIFIER, 3 },
 			{  9, 1, TokenType::ASSIGN, 0 },
 			{  9, 4, TokenType::LT, 0 },
 			{  9, 6, TokenType::MINUS, 0 },
 			{ 10, 1, TokenType::CHAR_C, '#' },
+			{ 10, 5, TokenType::STR_C, "STR" },
+			{ 11, 1, TokenType::IDENTIFIER, 4 },
+			{ 11, 3, TokenType::IDENTIFIER, 5 },
 			/* eof token */
-			{ 10, 4, TokenType::INVALID, 0 }
+			{ 11, 4, TokenType::INVALID, 0 }
 		};
 		REQUIRE(lex.output == expected);
 	}
 	{
-		const std::string_view words = "AND ARRAY BOOLEAN BYREF CALL CASE CHAR CONSTANT DATE DECLARE DIV ELSE ENDCASE ENDFUNCTION ENDIF ENDPROCEDURE ENDWHILE FALSE FOR FUNCTION IF INPUT INTEGER MOD NEXT NOT OF OR OTHERWISE OUTPUT PROCEDURE REAL REPEAT RETURN RETURNS STEP STRING THEN TO TRUE UNTIL WHILE";
+		const std::string words = "AND ARRAY BOOLEAN BYREF CALL CASE CHAR CONSTANT DATE DECLARE DIV ELSE ENDCASE ENDFUNCTION ENDIF ENDPROCEDURE ENDWHILE FALSE FOR FUNCTION IF INPUT INTEGER MOD NEXT NOT OF OR OTHERWISE OUTPUT PROCEDURE REAL REPEAT RETURN RETURNS STEP STRING THEN TO TRUE UNTIL WHILE";
 		std::vector<size_t> cols;
 		for(size_t i = 0; i < words.length(); i++){
 			if(words[i] != ' ' && (i == 0 || words[i-1] == ' ')){
 				cols.push_back(i+1);
 			}
 		}
-		Lexer lex(words);
+		std::istringstream inp(words);
+		Lexer lex(inp);
 		std::stringstream sstream;
 		for(const auto& tok : lex.output) sstream << tok;
 		/* eof token */
@@ -75,7 +83,8 @@ TEST_CASE("Lexing", "[lex]"){
 		 * Seriously.
 		 * That's 15 minutes of my life I am never getting back.
 		 */
-		Lexer lex(" 21/11/2019");
+		std::istringstream inp(" 21/11/2019");
+		Lexer lex(inp);
 		REQUIRE(lex.output.size() == 2); // eof token
 		const Token expected = { 1, 2, TokenType::DATE_C, Date(21, 11, 2019) };
 		REQUIRE(lex.output[0] == expected);
@@ -89,17 +98,11 @@ TEST_CASE("Lexing", "[lex]"){
 		const bool should_pass = (verdict == "pass");
 		// read file
 		std::ifstream in(file.path().c_str(), std::ios::in);
-		std::string cont;
-		in.seekg(0, std::ios::end);
-		cont.resize(in.tellg());
-		in.seekg(0, std::ios::beg);
-		in.read(&cont[0], cont.size());
-		in.close();
 
 		// test it
 		bool failed = false;
 		try {
-			Lexer tmp(cont);
+			Lexer tmp(in);
 		} catch(LexError& e){
 			failed = true;
 			UNSCOPED_INFO("Error is " << e.what());

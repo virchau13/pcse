@@ -5,17 +5,13 @@
 
 namespace fs = std::filesystem;
 
-struct Test {
-	const Lexer lex;
-	const Parser p;
-	Test(const std::string_view sv): lex(sv), p(lex.output) {}
-};
-
 TEST_CASE("Parsing", "[parser]"){
 
 	{
-		Test test("FOR i <- 1 TO 10 OUTPUT i NEXT");
-		Program &p = *test.p.output;
+		std::istringstream inp("FOR i <- 1 TO 10 OUTPUT i NEXT");
+		Lexer lex(inp);
+		Parser parser(lex.output);
+		Program &p = *parser.output;
 		REQUIRE(p.stmts.size() == 1);
 		REQUIRE(p.stmts[0].form == StmtForm::FOR);
 		REQUIRE(p.stmts[0].blocks.size() == 1);
@@ -27,8 +23,10 @@ TEST_CASE("Parsing", "[parser]"){
 	}
 
 	{ 
-		Test test("OUTPUT 2 + 3 * 4");
-		Program& p = *test.p.output;
+		std::istringstream inp("OUTPUT 2 + 3 * 4");
+		Lexer lex(inp);
+		Parser parser(lex.output);
+		Program& p = *parser.output;
 		// std::cout << p << '\n';
 		REQUIRE(p.stmts.size() == 1);
 		REQUIRE(p.stmts[0].exprs.size() == 1);
@@ -48,17 +46,11 @@ TEST_CASE("Parsing", "[parser]"){
 		const bool should_pass = (verdict == "pass");
 		// read file
 		std::ifstream in(file.path().c_str(), std::ios::in);
-		std::string cont;
-		in.seekg(0, std::ios::end);
-		cont.resize(in.tellg());
-		in.seekg(0, std::ios::beg);
-		in.read(&cont[0], cont.size());
-		in.close();
 
 		// test it
 		bool failed = false;
 		try {
-			Lexer tmp(cont);
+			Lexer tmp(in);
 			std::stringstream sstream;
 			for(const auto& t : tmp.output){
 				sstream << t;

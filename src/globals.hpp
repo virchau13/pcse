@@ -3,6 +3,8 @@
 
 #include <random>
 #include <map>
+#include <sstream>
+#include <list>
 #include "value.hpp"
 
 namespace builtin {
@@ -47,6 +49,15 @@ namespace builtin {
 		},
 		{ "INT", EFunc::make_builtin(1, int_f::types, (void *)int_f::int_f_wrapper, Primitive::INTEGER) }
 	};
+}
+
+namespace global {
+	static std::list<std::string> strings; // so string_view doesn't leak
+	inline std::string_view toStrView(const std::string& str){
+		strings.push_back(str);
+		return strings.back();
+	}
+	static std::istringstream dummy_stream;
 }
 
 #endif /* GLOBALS_HPP */

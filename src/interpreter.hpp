@@ -153,7 +153,7 @@ EValue LValue::eval(Env& env) const {
 	if(indexes != nullptr){
 		const EValue *val = &env.getValue(id);
 		if(indexes->size() != type.bounds.size()){
-			throw TypeError("[] used on int TODO finish this error");
+			throw TypeError("Cannot index a non-array");
 		}
 		for(size_t i = 0; i < type.bounds.size(); i++){
 			expectTypeEqual((*indexes)[i].type(env), Primitive::INTEGER);
@@ -174,7 +174,7 @@ EValue& LValue::ref(Env& env) const {
 	if(indexes != nullptr){
 		EValue *val = &env.value(id);
 		if(indexes->size() != type.bounds.size()){
-			throw TypeError("[] used on int TODO finish this error");
+			throw TypeError("Cannot index a non-array");
 		}
 		for(size_t i = 0; i < type.bounds.size(); i++){
 			expectTypeEqual((*indexes)[i].type(env), Primitive::INTEGER);
@@ -439,7 +439,7 @@ anylevelstmt:
 			}
 			break;
 		CASE(INPUT):
-			env.input(&lvalues[0].ref(env), lvalues[0].type(env));
+			env.input(lvalues[0].ref(env), lvalues[0].type(env));
 			break;
 		CASE(OUTPUT):
 			for(size_t i = 0; i < exprs.size(); i++){
@@ -522,7 +522,7 @@ endcase:
 				// Keep the old var for restoring later.
 				const EType old_type = env.getType(ids[0]);
 				EValue old_val;
-				int32_t old_call_frame;
+				int32_t old_call_frame = 0;
 				if(old_type != Primitive::INVALID){
 					old_val = env.getValue(ids[0]);
 					old_call_frame = env.getLevel(ids[0]);

@@ -31,11 +31,11 @@ TEST_CASE("INTERPRETING", "[interpreter]"){
 		INFO("File is " << name);
 		if(!endsWith(name, ".in.pcse")) continue; /* we don't want to look at this file */
 		
-		std::string contents = readFile(file.path().c_str());
+		std::ifstream in(file.path().c_str(), std::ios::in);
 		/* Lexer::Lexer uses a std::string_view, so we have to destroy it _before_ contents */
 		{
 
-			Lexer lex(contents);
+			Lexer lex(in);
 			Parser parser(lex.output);
 			Env env(lex.identifier_count, lex.id_num);
 			std::string inpname = file.path().c_str();
@@ -80,7 +80,7 @@ TEST_CASE("INTERPRETING", "[interpreter]"){
 		INFO("File is " << name);
 		if(!endsWith(name, ".in.pcse")) continue; /* we don't want to look at this file */
 
-		std::string contents = readFile(file.path().c_str());
+		std::ifstream in(file.path().c_str(), std::ios::in);
 		/* Lexer::Lexer uses a std::string_view, so we have to destroy it _before_ contents */
 		{
 			std::string outname = file.path().c_str();
@@ -99,7 +99,7 @@ TEST_CASE("INTERPRETING", "[interpreter]"){
 			std::string errmsg = "";
 #define CATCH(err) catch(err& e){ errmsg += #err; errmsg += ": "; errmsg += e.what(); errmsg += '\n'; }
 			try {
-				Lexer lex(contents);
+				Lexer lex(in);
 				Parser parser(lex.output);
 				Env env(lex.identifier_count, lex.id_num);
 				parser.run(env);

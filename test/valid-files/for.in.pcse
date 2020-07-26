@@ -1,0 +1,3 @@
+FOR i <- 1 TO 8 
+	OUTPUT i
+NEXT
