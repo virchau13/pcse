@@ -4,6 +4,7 @@ tests
 .ccls
 *.o
 *.gch
+*.exe
 
 # CMake
 CMakeLists.txt.user

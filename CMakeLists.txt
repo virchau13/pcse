@@ -1,3 +1,6 @@
+if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+	set(CMAKE_TRY_COMPILE_TARGET_TYPE "STATIC_LIBRARY")
+endif()
 project(pcse CXX)
 cmake_minimum_required(VERSION 3.10.3)
 set(CMAKE_CXX_STANDARD 17)
