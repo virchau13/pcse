@@ -41,5 +41,5 @@ Documentation can be found in `docs/`, and examples can be found in `examples/`.
 - [x] lexer
 - [x] parser
 - [x] interpreter
-- [ ] CLI
-- [ ] VSCode extension
+- [x] CLI
+- [x] VSCode extension
