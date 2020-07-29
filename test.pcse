@@ -1,1 +1,14 @@
-OUTPUT RND()
+FUNCTION Fibonacci(n: INTEGER) RETURNS INTEGER
+	IF n <= 2 THEN
+		RETURN 1 // Fibonacci(1) = Fibonacci(2) = 1
+	ELSE
+		RETURN Fibonacci(n-1) + Fibonacci(n-2) // recursive relation
+	ENDIF
+ENDFUNCTION
+
+DECLARE n: INTEGER
+DECLARE ans: INTEGER
+OUTPUT "Input N and this program will calculate Fibonacci(N)"
+INPUT n
+ans <- Fibonacci(n)
+OUTPUT "The answer is ", ans

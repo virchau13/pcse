@@ -6,7 +6,7 @@
 
 // encoding independent versions of the C functions
 
-inline bool isDigit(const char c) noexcept {
+inline bool isDigit(const unsigned char c) noexcept {
 	return (c ^ 0x30) <= 9;
 }
 
