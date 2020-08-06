@@ -38,6 +38,10 @@ void defFunc(Env& env, const Stmt<true> &stmt){
 
 // Calls a function.
 const std::optional<EValue> callFunc(Env& env, int64_t id, const std::vector<Expr>& args) {
+	auto func_it = env.functable.find(id);
+	if(func_it == env.functable.end()){
+		throw RuntimeError("Cannot call non-function");
+	}
 	const EFunc &func = env.functable[id];
 	if(args.size() != func.arity){
 		throw RuntimeError("Invalid number of parameters for function");
@@ -136,7 +140,11 @@ EType Primary::type(Env& env) const {
 	IF(STR_C) RET(STRING);
 	IF(IDENTIFIER) return all.main.lvalue.type(env);
 	IF(CALL){
-		const auto type = env.functable[all.func_id].ret_type;
+		auto func_it = env.functable.find(all.func_id);
+		if(func_it == env.functable.end()){
+			throw RuntimeError("Cannot call non-function");
+		}
+		const auto type = func_it->second.ret_type;
 		if(type == Primitive::INVALID){
 			throw RuntimeError("Cannot call procedure and use it as a value");
 		}

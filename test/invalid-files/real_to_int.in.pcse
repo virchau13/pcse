@@ -1,0 +1,4 @@
+DECLARE x: REAL
+DECLARE y: INTEGER
+x <- 2.0
+y <- x

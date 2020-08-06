@@ -1,0 +1,1 @@
+TypeError: Bad type ARRAY[0:2] OF INTEGER, expected ARRAY[0:1] OF INTEGER
