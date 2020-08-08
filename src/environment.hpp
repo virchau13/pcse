@@ -12,11 +12,7 @@
 #include "utils.hpp"
 #include "value.hpp"
 #include "globals.hpp"
-
-struct RuntimeError : public std::runtime_error {
-	using std::runtime_error::runtime_error;
-};
-
+#include "error.hpp"
 
 class EnvError : public std::runtime_error {
 public:

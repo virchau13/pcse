@@ -428,7 +428,6 @@ protected:
 	void lex(){
 		char c;
 		while((c = next()) && !done()){
-			// TODO: use fstream not source string (otherwise windows exe dies)
 			switch(c){
 				case '(': emit(TokenType::LEFT_PAREN); break;
 				case ')': emit(TokenType::RIGHT_PAREN); break;

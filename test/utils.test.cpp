@@ -9,8 +9,11 @@ TEST_CASE("isDigit()", "[utils]"){
 	for(char c = std::numeric_limits<char>::min(); c < std::numeric_limits<char>::max(); c++){
 		bool isnum = (digits.find(c) != std::string::npos);
 		INFO("char is " << c);
-		REQUIRE(isDigit(c) == isnum);
+		if(isDigit(c) != isnum){
+			REQUIRE(false);
+		}
 	}
+	REQUIRE(true);
 }
 
 std::string alphas = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -20,6 +23,9 @@ TEST_CASE("isAlpha()", "[utils]"){
 	for(char c = std::numeric_limits<char>::min(); c < std::numeric_limits<char>::max(); c++){
 		bool isal = (alphas.find(c) != std::string::npos);
 		INFO("char is " << c);
-		REQUIRE(isAlpha(c) == isal);
+		if(isAlpha(c) != isal){
+			REQUIRE(false);
+		}
 	}
+	REQUIRE(true);
 }

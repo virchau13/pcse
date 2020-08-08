@@ -1,3 +1,1 @@
-DECLARE i: INTEGER
-i <- 4
-OUTPUT i()
+OUTPUT 1/-0

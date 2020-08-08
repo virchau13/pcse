@@ -6,6 +6,7 @@
 #include <limits>
 #include <type_traits>
 #include <ostream>
+#include "error.hpp"
 
 /* In PCSE, the REAL datatype is supposed to represent any real number.
  * This comes with a variety of problems, most notably that this is computationally impossible.
@@ -28,7 +29,7 @@ protected:
 private:
 // Overflow / underflow checks {{{
 
-	inline bool mul_will_flow(num_t a, num_t b) const noexcept {
+	inline bool mul_will_flow(num_t a, num_t b) const {
 		// two complement check (cuz -INT_MIN == INT_MAX+1)
 		if(a == -1 && b == NUM_MIN) return true;
 		if(b == -1 && a == NUM_MIN) return true;
@@ -38,19 +39,19 @@ private:
 		return false;
 	}
 
-	inline bool add_will_flow(num_t a, num_t b) const noexcept {
+	inline bool add_will_flow(num_t a, num_t b) const {
 		if(b > 0 && a < NUM_MAX - b) return true;
 		if(b < 0 && a < NUM_MIN - b) return true;
 		return false;
 	}
 
-	inline bool sub_will_flow(num_t a, num_t b) const noexcept {
+	inline bool sub_will_flow(num_t a, num_t b) const {
 		if(b < 0 && a < NUM_MAX + b) return true;
 		if(b > 0 && a < NUM_MIN + b) return true;
 		return false;
 	}
 
-	inline bool div_will_flow(num_t a, num_t b) const noexcept {
+	inline bool div_will_flow(num_t a, num_t b) const {
 		// INT_MIN/(-1) = INT_MAX+1
 		if(a == NUM_MIN && b == -1) return true;
 		return false;
@@ -60,33 +61,41 @@ private:
 public:
 	using num_type = num_t;
 
-	inline void inverse_inplace() noexcept {
+	inline void inverse_inplace() {
 		num_t tmp = top;
 		top = bot;
 		bot = tmp;
+		div_by_0();
 	}
 
-	inline void simplify() noexcept {
+	inline void simplify() {
 		num_t div = std::gcd(top, bot);
 		top /= div;
 		bot /= div;
 	}
 
-	inline Fraction inverse() const noexcept {
+	inline Fraction inverse() const {
 		Fraction res = *this;
 		res.inverse_inplace();
 		return res;
 	}
 
-	inline double to_double() const noexcept { return (double)top / (double)bot; }
+	inline void div_by_0() const {
+		if(bot == 0){
+			throw RuntimeError("Cannot divide by zero");
+		}
+	}
 
-	inline int64_t to_int() const noexcept { return top / bot; }
+	inline double to_double() const { return (double)top / (double)bot; }
+
+	inline int64_t to_int() const { return top / bot; }
 
 	// Constructors and operator= {{{
 
 	explicit inline Fraction(num_t x) : top(x), bot(1) {}
 
 	inline Fraction(num_t top_, num_t bottom_): top(top_), bot(bottom_) {
+		div_by_0();
 		simplify();
 	}
 
@@ -96,7 +105,7 @@ public:
 	
 	// don't take fractions by reference - too expensive
 
-	inline Fraction& operator*=(const Fraction<num_t> other) noexcept {
+	inline Fraction& operator*=(const Fraction<num_t> other) {
 		/* (a/b) * (c/d) = (ac / bd)
 		 * but we want to avoid overflow, 
 		 * so we can't just do this then simplify.
@@ -118,18 +127,18 @@ public:
 		return *this;
 	}
 	template<typename Int>
-	typename std::enable_if_t<std::numeric_limits<Int>::is_integer, Fraction&> operator*=(const Int other) noexcept {
+	typename std::enable_if_t<std::numeric_limits<Int>::is_integer, Fraction&> operator*=(const Int other) {
 		num_t g = std::gcd(other, bot);
 		top *= other / g;
 		bot /= g;
 		return *this;
 	}
 
-	inline Fraction& operator/=(const Fraction<num_t> other) noexcept {
+	inline Fraction& operator/=(const Fraction<num_t> other) {
 		return operator*=(other.inverse());
 	}
 	template<typename Int>
-	typename std::enable_if_t<std::numeric_limits<Int>::is_integer, Fraction&> operator/=(const Int other) noexcept {
+	typename std::enable_if_t<std::numeric_limits<Int>::is_integer, Fraction&> operator/=(const Int other) {
 		num_t g = std::gcd(other, top);
 		top /= g;
 		bot *= other / g;
@@ -145,7 +154,7 @@ public:
 	}
 
 	/*
-	typename std::enable_if_t<(sizeof(num_t) > 4), Fraction&> operator+=(const Fraction<num_t> other) noexcept {
+	typename std::enable_if_t<(sizeof(num_t) > 4), Fraction&> operator+=(const Fraction<num_t> other) {
 		// TODO: explain this
 		num_t x = std::gcd(bot, other.bot);
 		bot /= x;
@@ -157,18 +166,18 @@ public:
 	} */
 
 	template<typename Int>
-	inline typename std::enable_if_t<std::numeric_limits<Int>::is_integer, Fraction&> operator+=(const Int other) noexcept {
+	inline typename std::enable_if_t<std::numeric_limits<Int>::is_integer, Fraction&> operator+=(const Int other) {
 		top += other * bot;
 		return *this;
 	}
 
-	inline Fraction& operator-=(const Fraction<num_t> other) noexcept {
+	inline Fraction& operator-=(const Fraction<num_t> other) {
 		// operator+= but with -other.top
 		return operator+=(-other);
 	}
 
 	template<typename Int>
-	inline typename std::enable_if_t<std::numeric_limits<Int>::is_integer, Fraction&> operator-=(const Int other) noexcept {
+	inline typename std::enable_if_t<std::numeric_limits<Int>::is_integer, Fraction&> operator-=(const Int other) {
 		top -= other * bot;
 		return *this;
 	}
@@ -176,21 +185,21 @@ public:
 	// }}}
 	
 	// Comparison operators {{{
-	inline bool operator==(const Fraction<num_t> other) const noexcept {
+	inline bool operator==(const Fraction<num_t> other) const {
 		return top == other.top && bot == other.bot;
 	}
 
 	template<typename Int>
-	inline typename std::enable_if_t<std::numeric_limits<Int>::is_integer, bool> operator==(const Int other) const noexcept {
+	inline typename std::enable_if_t<std::numeric_limits<Int>::is_integer, bool> operator==(const Int other) const {
 		return top == other && bot == 1;
 	}
 
 	template<typename T>
-	inline bool operator!=(const T other) const noexcept {
+	inline bool operator!=(const T other) const {
 		return !operator==(other);
 	}
 
-	inline std::enable_if_t<sizeof(num_t) <= 4, bool> operator<(const Fraction<num_t> other) const noexcept {
+	inline std::enable_if_t<sizeof(num_t) <= 4, bool> operator<(const Fraction<num_t> other) const {
 		// literally just 64 bit hacks lmao
 		// a/b < c/d
 		// ad/bd < cb/db
@@ -203,7 +212,7 @@ public:
 	}
 
 	template<typename Int>
-	inline typename std::enable_if_t<std::numeric_limits<Int>::is_integer, bool> operator<(const Int other) const noexcept {
+	inline typename std::enable_if_t<std::numeric_limits<Int>::is_integer, bool> operator<(const Int other) const {
 		// just check if the integer division
 		// compares
 		num_t a = top / bot;
@@ -211,17 +220,17 @@ public:
 	}
 
 	template<typename T>
-	inline bool operator<=(const T other) const noexcept {
+	inline bool operator<=(const T other) const {
 		return operator==(other) || operator<(other);
 	}
 
 	template<typename T>
-	inline bool operator>(const T other) const noexcept {
+	inline bool operator>(const T other) const {
 		return !operator<=(other);
 	}
 
 	template<typename T>
-	inline bool operator>=(const T other) const noexcept {
+	inline bool operator>=(const T other) const {
 		return !operator<(other);
 	}
 
@@ -229,32 +238,32 @@ public:
 
 	// Generic operators like * {{{
 	template<typename T>
-	inline Fraction operator*(const T other) const noexcept {
+	inline Fraction operator*(const T other) const {
 		Fraction res = *this;
 		res *= other;
 		return res;
 	}
 	template<typename T>
-	inline Fraction operator/(const T other) const noexcept {
+	inline Fraction operator/(const T other) const {
 		Fraction res = *this;
 		res /= other;
 		return res;
 	}
 	template<typename T>
-	inline Fraction operator+(const T other) const noexcept {
+	inline Fraction operator+(const T other) const {
 		Fraction res = *this;
 		res += other;
 		return res;
 	}
 	template<typename T>
-	inline Fraction operator-(const T other) const noexcept {
+	inline Fraction operator-(const T other) const {
 		Fraction res = *this;
 		res -= other;
 		return res;
 	}
 
 	// Unary minus
-	inline Fraction operator-() const noexcept {
+	inline Fraction operator-() const {
 		Fraction res = *this;
 		res.top = -res.top;
 		return res;
@@ -262,7 +271,7 @@ public:
 	// }}}
 	
 	// Friends {{{
-	friend std::ostream& operator<<(std::ostream& os, const Fraction<num_t>& frac) noexcept {
+	friend std::ostream& operator<<(std::ostream& os, const Fraction<num_t>& frac) {
 		os << frac.top;
 		os << '/';
 		os << frac.bot;
