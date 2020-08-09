@@ -81,10 +81,10 @@ fail:
 		std::cerr << "istream::failure::what(): " << e.what() << '\n';
 		return EXIT_FAILURE;
 	} catch(LexError& e){
-		if(print_line) std::cout << e.line << ':' << e.col << '\n';
+		if(print_line) std::cerr << e.line << ':' << e.col << '\n';
 		CATCH_B(LexError);
 	} catch(ParseError& e){
-		if(print_line) std::cout << e.token.line << ':' << e.token.col << '\n';
+		if(print_line) std::cerr << e.token.line << ':' << e.token.col << '\n';
 		CATCH_B(ParseError);
 	} CATCH(TypeError) CATCH(RuntimeError);
 
