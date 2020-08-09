@@ -1,5 +1,6 @@
 a.out
 pcse
+pcse-x64-*
 tests
 .ccls
 *.o

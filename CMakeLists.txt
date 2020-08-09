@@ -1,3 +1,4 @@
+project(pcse CXX)
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
 	if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
 		add_link_options(-lstdc++ -static-libgcc -static-libstdc++)
@@ -5,7 +6,6 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
 		add_link_options(-static)
 	endif()
 endif()
-project(pcse CXX)
 cmake_minimum_required(VERSION 3.10.3)
 set(CMAKE_CXX_STANDARD 17)
 
