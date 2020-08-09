@@ -1,0 +1,6 @@
+// actual bug i ran into once
+PROCEDURE doProc
+ OUTPUT "Hi"
+ENDPROCEDURE
+
+CALL doProc

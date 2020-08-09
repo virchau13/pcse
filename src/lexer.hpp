@@ -407,7 +407,8 @@ protected:
 		const size_t start = curr-1;
 		std::string id;
 		id += c;
-		while(isAlpha(peek()) || peek() == '_') id.push_back(next());
+		// var names match /[A-Za-z][A-Za-z0-9_]*/
+		while(isAlpha(peek()) || isDigit(peek()) || peek() == '_') id.push_back(next());
 		if(reservedWords.find(id) != reservedWords.end()){
 			emit(reservedWords.at(id), 0, start);
 		} else {

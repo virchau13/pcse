@@ -6,6 +6,7 @@ int main(int argc, char *argv[]){
 	const char *filename = nullptr;
 	bool print_tokens = false;
 	bool print_tree = false;
+	bool print_line = false;
 	for(int i = 1; i < argc; i++){
 		std::string_view arg(argv[i]);
 		if(!arg.size()) goto fail;
@@ -24,6 +25,8 @@ int main(int argc, char *argv[]){
 				print_tokens = true;
 			} else if(arg == "--print-tree"){
 				print_tree = true;
+			} else if(arg == "-l"){
+				print_line = true;
 			} else {
 				fprintf(stderr, "Unknown option %s\n", argv[i]);
 				goto fail;
@@ -51,10 +54,13 @@ fail:
 		exit(EXIT_FAILURE);
 	}
 
+#define CATCH_B(n) \
+	std::cerr << #n << ": " << e.what() << '\n'; \
+	return EXIT_FAILURE; \
+
 #define CATCH(name) \
 	catch(name &e) { \
-		std::cerr << #name << ": " << e.what() << '\n'; \
-		return EXIT_FAILURE; \
+		CATCH_B(name) \
 	}
 	
 	try {
@@ -74,7 +80,13 @@ fail:
 		std::cerr << "File error: Failure to read file\n";
 		std::cerr << "istream::failure::what(): " << e.what() << '\n';
 		return EXIT_FAILURE;
-	} CATCH(LexError) CATCH(ParseError) CATCH(TypeError) CATCH(RuntimeError);
+	} catch(LexError& e){
+		if(print_line) std::cout << e.line << ':' << e.col << '\n';
+		CATCH_B(LexError);
+	} catch(ParseError& e){
+		if(print_line) std::cout << e.token.line << ':' << e.token.col << '\n';
+		CATCH_B(ParseError);
+	} CATCH(TypeError) CATCH(RuntimeError);
 
 	return EXIT_SUCCESS;
 }

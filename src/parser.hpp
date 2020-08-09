@@ -723,8 +723,8 @@ public:
 				ids.push_back(CONSUME_ID());
 				if(p.match_type(TokenType::LEFT_PAREN)){
 					exprlist(p);
+					p.expect_type(TokenType::RIGHT_PAREN);
 				}
-				p.expect_type(TokenType::RIGHT_PAREN);
 				break;
 			default:
 				if(is_func && t.type == TokenType::RETURN){

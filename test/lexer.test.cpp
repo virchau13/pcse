@@ -89,6 +89,14 @@ TEST_CASE("Lexing", "[lex]"){
 		const Token expected = { 1, 2, TokenType::DATE_C, Date(21, 11, 2019) };
 		REQUIRE(lex.output[0] == expected);
 	}
+	{
+		// Forgot to test for numbers at the end of identifiers
+		std::istringstream inp("var1");
+		Lexer lex(inp);
+		REQUIRE(lex.output.size() == 2); // last one is EOF token
+		const Token expected = { 1, 1, TokenType::IDENTIFIER, 1 };
+		REQUIRE(lex.output[0] == expected);
+	}
 	for(const auto& file : fs::directory_iterator("test/lex-files")){
 		const std::string name = file.path().filename().string();
 		INFO("File is " << name);
