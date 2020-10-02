@@ -570,10 +570,9 @@ const std::vector<TokenType> valid_stmt_starts = {
 };
 
 inline bool isValidStmtStart(const TokenType type) noexcept {
-	for(const auto t : valid_stmt_starts){
-		if(t == type) return true;
-	} 
-	return false;
+    return std::any_of(valid_stmt_starts.begin(), valid_stmt_starts.end(), [type](const TokenType& t) {
+                return t == type;
+            });
 }
 
 class Block {
