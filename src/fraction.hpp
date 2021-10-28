@@ -6,6 +6,7 @@
 #include <limits>
 #include <type_traits>
 #include <ostream>
+#include <iostream>
 #include "error.hpp"
 
 /* In PCSE, the REAL datatype is supposed to represent any real number.

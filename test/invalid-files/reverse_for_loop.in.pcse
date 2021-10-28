@@ -1,0 +1,5 @@
+DECLARE a: REAL
+// This should fail with a RuntimeError, since it "won't ever terminate".
+FOR i <- 0 TO 10 STEP -1
+	OUTPUT "unreachable"
+NEXT

@@ -1,0 +1,4 @@
+// This should fail, since it "won't ever terminate".
+FOR i <- 10.0 TO 0.0
+	OUTPUT "unreachable"
+NEXT

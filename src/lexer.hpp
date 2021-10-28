@@ -447,7 +447,14 @@ protected:
 				case '/': 
 					if(match('/')){
 						// comment
-						while(peek() != '\n') next();
+						char p;
+						while((p = peek()) != '\n') {
+							if(p == '\0') { 
+								// EOF 
+								return;
+							}
+							next();
+						};
 						next();
 						newline();
 					} else {

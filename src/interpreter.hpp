@@ -5,9 +5,9 @@
 
 
 template<typename... Args>
-void expectTypeEqual(const EType& t1, const Args&... args){
-	if(!isAnyOf(t1, args...)){
-		throw TypeError("Bad type " + t1.to_str() + ", expected any of: " + (EType(args).to_str() + ...));
+void expectTypeEqual(const EType& t1, const EType& t, const Args&... args){
+	if(!isAnyOf(t1, t, args...)){
+		throw TypeError("Bad type " + t1.to_str() + ", expected any of: " + EType(t).to_str() + (", " + EType(args).to_str() + ...));
 	}
 }
 
@@ -341,6 +341,10 @@ EValue BinExpr<Level>::eval(Env& env) const {
 		else leftval.i64 op##= rightval.i64; \
 	}\
 	return leftval;
+	// All of these operators only work on INTEGERs or REALs,
+	// so validate ahead-of-time.
+	expectTypeEqual(ltype, Primitive::REAL, Primitive::INTEGER);
+	expectTypeEqual(rtype, Primitive::REAL, Primitive::INTEGER);
 		
 		switch(opt.op){
 			case TokenType::STAR:
@@ -557,6 +561,11 @@ endcase:
 						}
 					}
 					const Fraction<> step(exprs.size() == 3 ? vals[2].frac : Fraction<>(1));
+					// To prevent loop overflow, check first if a loop goes in the 
+					// opposite direction to its step.
+					if(((vals[0].frac < vals[1].frac) && (step < 0)) || ((vals[0].frac > vals[1].frac) && (step > 0))) {
+						throw RuntimeError("Cannot have a for loop that goes in the opposite direction to its step");
+					}
 					for(Fraction<> loopvar = vals[0].frac;
 						LOOPCOND(vals[0].frac, vals[1].frac, loopvar);
 						loopvar += step){
@@ -570,6 +579,11 @@ endcase:
 				} else {
 					// Integer for loop.
 					const auto step = (exprs.size() == 3 ? vals[2].i64 : 1);
+					// To prevent loop overflow, check first if a loop goes in the 
+					// opposite direction to its step.
+					if(((vals[0].i64 < vals[1].i64) && (step < 0)) || ((vals[0].i64 > vals[1].i64) && (step > 0))) {
+						throw RuntimeError("Cannot have a for loop that goes in the opposite direction to its step");
+					}
 					for(
 						auto loopvar = vals[0].i64;
 						LOOPCOND(vals[0].i64, vals[1].i64, loopvar);

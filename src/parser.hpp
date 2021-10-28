@@ -125,6 +125,9 @@ public:
 	inline EType type(const Env& env) const {
 		const EType& type = env.getType(id);
 		if(indexes == nullptr) return type;
+		if(!type.is_array){
+			throw TypeError("Cannot index a non-array");
+		}
 		// How many indexes deep are we?
 		size_t depth = indexes->size();
 		std::vector<std::pair<int64_t,int64_t>> new_bounds(type.bounds.size() - depth);
@@ -366,8 +369,8 @@ inline LValue::LValue(Parser& p, int64_t id_) : id(id_) {
 
 const std::vector<TokenType> const_types = {
 	TokenType::REAL_C, TokenType::INT_C, TokenType::STR_C,
-    TokenType::TRUE, TokenType::FALSE, TokenType::CHAR_C,
-    TokenType::DATE_C
+	TokenType::TRUE, TokenType::FALSE, TokenType::CHAR_C,
+	TokenType::DATE_C
 };
 
 inline Primary::Primary(Parser& p) {
@@ -403,7 +406,7 @@ inline Primary::Primary(Parser& p) {
 			return;
 		}
 	} else if(n.type == TokenType::LEFT_PAREN){
-		/* all.primtype is set to INVALID by default */
+		all.primtype = TokenType::INVALID;
 		all.main.expr = new Expr(p);
 		p.expect_type(TokenType::RIGHT_PAREN);
 		return;
