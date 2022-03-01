@@ -14,7 +14,7 @@
                 src = ./.;
                 nativeBuildInputs = [
                     cmake
-                ] ++ (with llvmPackages_13; [
+                ] ++ (with llvmPackages_12; [
                     clang
                 ]);
                 buildInputs = [

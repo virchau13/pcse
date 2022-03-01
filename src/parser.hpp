@@ -140,17 +140,7 @@ public:
 		/* Deleting a nullptr is safe. */
 		delete indexes;
 	}
-	// Friend operator<< {{{
-	friend std::ostream& operator<<(std::ostream& os, const LValue& lv){
-		os << '~' << lv.id;
-		if(lv.indexes != nullptr){
-			for(Expr& expr : *lv.indexes){
-				os << '[' << expr << ']';
-			}
-		}
-		return os;
-	}
-	// }}}
+	friend std::ostream& operator<<(std::ostream& os, const LValue& lv);
 };
 
 class Primary {
@@ -508,16 +498,7 @@ public:
 		return id;
 	}
 	Param(Parser& p) : byref(make_byref(p)), ident(make_ident(p)), type(p) {}
-	// friend operator<< {{{
-	friend std::ostream& operator<<(std::ostream& os, const Param& p) noexcept {
-		os << '{';
-		if(p.byref) os << "BYREF ";
-		os << '{' << p.ident << "}: ";
-		os << p.type;
-		os << '}';
-		return os;
-	}
-	// }}}
+	friend std::ostream& operator<<(std::ostream& os, const Param& p) noexcept;
 };
 
 // }}}
@@ -589,16 +570,7 @@ public:
 		}
 	}
 	const Expr *eval(Env& env) const;
-	// friend operator<< {{{
-	friend std::ostream& operator<<(std::ostream& os, const Block& b) noexcept {
-		os << "{\n";
-		for(const auto& x : b.stmts){
-			os << x << '\n';
-		}
-		os << '}';
-		return os;
-	}
-	// }}}
+	friend std::ostream& operator<<(std::ostream& os, const Block& b) noexcept;
 };
 
 class Program {
@@ -610,16 +582,7 @@ public:
 		}
 	}
 	void eval(Env& env) const;
-	// friend operator<< {{{
-	friend std::ostream& operator<<(std::ostream& os, const Program& p) noexcept {
-		os << "{\n";
-		for(const auto& x : p.stmts){
-			os << x << '\n';
-		}
-		os << '}';
-		return os;
-	}
-	// }}}
+	friend std::ostream& operator<<(std::ostream& os, const Program& p) noexcept;
 };
 
 template<bool TopLevel>
@@ -826,6 +789,47 @@ public:
 
 // }}}
 
+// `friend operator<<`s {{{
+
+std::ostream& operator<<(std::ostream& os, const LValue& lv) {
+    os << '~' << lv.id;
+    if(lv.indexes != nullptr){
+        for(Expr& expr : *lv.indexes){
+            os << '[' << expr << ']';
+        }
+    }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const Param& p) noexcept {
+    os << '{';
+    if(p.byref) os << "BYREF ";
+    os << '{' << p.ident << "}: ";
+    os << p.type;
+    os << '}';
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const Program& p) noexcept {
+    os << "{\n";
+    for(const auto& x : p.stmts){
+        os << x << '\n';
+    }
+    os << '}';
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const Block& b) noexcept {
+    os << "{\n";
+    for(const auto& x : b.stmts){
+        os << x << '\n';
+    }
+    os << '}';
+    return os;
+}
+
+// }}}
+
 // Parser::{parse, run, ~Parser} {{{
 
 inline void Parser::parse(){
@@ -844,4 +848,3 @@ inline Parser::~Parser() {
 // }}}
 
 #endif /* PARSER_HPP */
-

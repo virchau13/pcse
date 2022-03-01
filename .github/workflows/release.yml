@@ -1,0 +1,31 @@
+name: release
+
+on: [workflow_dispatch]
+
+jobs:
+  check:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-2019, macos-latest]
+        steps:
+          - name: Git checkout
+            uses: actions/checkout@v2
+          - name: Build
+            run: |
+              mkdir build/
+              pushd build/
+              cmake -DCMAKE_BUILD_TYPE=Release ..
+              make
+              popd
+              mv build/pcse ..
+              SUM="$(sha256sum pcse)"
+              mkdir -p result/"$SUM"
+              mv pcse result/"$SUM"/"pcse-$(echo "$RUNNER_OS" | tr '[:upper:]' '[:lower:]')-x64"
+          - name: Deploy to FTP server
+            uses: SamKirkland/FTP-Deploy-Action@4.3.0
+            with:
+              server: okab.aquila.n.hexular.net
+              username: ftp-service
+              password: ${{ secrets.FTP_PASSWORD }}
+              local-dir: result/
