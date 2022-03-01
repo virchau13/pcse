@@ -1,4 +1,7 @@
 project(pcse CXX)
+cmake_minimum_required(VERSION 3.10.3)
+set(CMAKE_CXX_STANDARD 17)
+
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
 	if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
 		add_link_options(-lstdc++ -static-libgcc -static-libstdc++)
@@ -9,8 +12,6 @@ endif()
 if(CMAKE_BUILD_TYPE STREQUAL "Debug") 
     add_compile_options(-ggdb)
 endif()
-cmake_minimum_required(VERSION 3.10.3)
-set(CMAKE_CXX_STANDARD 17)
 
 if(MSVC)
 	add_compile_options(/W4 /WX)
