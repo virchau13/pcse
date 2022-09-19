@@ -7,7 +7,7 @@ block = { stmt };
 
 topstmt = stmt | 
 		DECLARE, identifier, COLON, type |
-		CONSTANT, identifier, =, expr
+		CONSTANT, identifier, =, expr |
 		PROCEDURE, identifier, [ LEFT_PAR, paramlist, RIGHT_PAR ], block, ENDPROCEDURE |
 		FUNCTION, identifier [ LEFT_PAR, paramlist, RIGHT_PAR ], RETURNS, type, block, ENDFUNCTION
 ;
